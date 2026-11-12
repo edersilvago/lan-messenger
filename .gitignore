@@ -1,0 +1,30 @@
+# === Artefatos de build ===
+build/
+build-win7/
+dist/
+dist-win7/
+installer/*.exe
+*.pyc
+__pycache__/
+lan_messenger/version_info.txt
+
+# === Dados de execução locais (estado real de máquina/usuário) ===
+lan_messenger/lan_history.db
+lan_messenger/peers_cache.json
+lan_messenger/profile.json
+lan_messenger/settings.json
+lan_messenger/networks.json
+lan_messenger/inbox/
+lan_messenger/logs/
+*.key
+
+# === Arquivos internos (não publicar) ===
+lan_messenger/LEIA-ME-TESTE.txt
+
+# === Sons de terceiros (ver docs/BUILD-E-RELEASE.md) ===
+lan_messenger/assets/sounds/*.wav
+
+# === Ferramentas locais ===
+.gitnexus/
+.claude/
+.vscode/
