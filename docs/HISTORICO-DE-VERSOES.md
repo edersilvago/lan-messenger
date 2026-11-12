@@ -2,7 +2,7 @@
 
 Versão atual: **v1.24**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
 
-## v1.0 / v1.1 — base P2P estilo Softros
+## v1.0 / v1.1 — base P2P
 - Descoberta UDP, chat TCP direto, arquivos com sha256, presença, histórico local SQLite, instaladores.
 
 ## v1.2 — descoberta imediata
