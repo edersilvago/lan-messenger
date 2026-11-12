@@ -1,6 +1,6 @@
 # LAN Messenger — P2P para rede local e VPN, sem servidor
 
-Mensageiro instantâneo para Windows no estilo do Softros LAN Messenger: descoberta de usuários por UDP, conversa e arquivos por TCP direto entre os PCs, criptografia opcional AES-256-GCM e histórico local em SQLite. Não usa servidor de mensagem — tudo é ponto a ponto.
+Mensageiro instantâneo para Windows no estilo do LAN Messenger: descoberta de usuários por UDP, conversa e arquivos por TCP direto entre os PCs, criptografia opcional AES-256-GCM e histórico local em SQLite. Não usa servidor de mensagem — tudo é ponto a ponto.
 
 Compatível com Windows 7 SP1 / 8 / 8.1 / 10 / 11 (64 bits), com instaladores dedicados por família de sistema.
 
