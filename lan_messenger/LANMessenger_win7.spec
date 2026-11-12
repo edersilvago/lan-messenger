@@ -76,7 +76,8 @@ a = Analysis(
     + _extra_datas,
     hiddenimports=[],
     hookspath=[],
-    excludes=["numpy", "PIL.AvifImagePlugin"],
+    excludes=["numpy", "PIL.AvifImagePlugin",
+              "windows_toasts", "winsdk"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)

@@ -57,6 +57,7 @@ class Settings:
     show_datetime: bool = True        # mostrar data/hora (desmarcado = "não mostrar")
     incoming_behavior: str = "foreground"  # "foreground" | "minimize"
     keep_focus: bool = False          # manter foco do teclado na conversa
+    toast_enabled: bool = True        # notificações do sistema (toast Win10/11)
     font_size: str = "large"          # "normal" | "large" | "xlarge"
     group_aliases: dict = field(default_factory=dict)  # dept -> apelido
     hidden_groups: list = field(default_factory=list)  # depts ocultos
@@ -122,7 +123,7 @@ def load(base: str | Path | None = None) -> tuple[Profile, Settings]:
                       "snd_user_online", "snd_file",
                       "crypto_key", "autostart",
                       "show_recent", "show_datetime", "incoming_behavior",
-                      "keep_focus", "font_size",
+                      "keep_focus", "font_size", "toast_enabled",
                       "group_aliases", "hidden_groups",
                       "custom_groups", "peer_groups", "group_order",
                       "main_geometry", "chat_geometry",

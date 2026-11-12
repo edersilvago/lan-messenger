@@ -240,6 +240,19 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   funciona como anotações (loopback real, vai p/ o histórico).
 - Chamadas de worker p/ UI via fila thread-safe (sem travar).
 
+## Toast e menções (v1.26)
+
+- **Notificações do sistema (toast)** — mensagens recebidas avisam por
+  toast do Windows (Win10/11), com clique que traz o app para frente;
+  no Win7/8.1 segue o balão da bandeja. Opção em Config > Mensagens
+  ("Notificações do sistema").
+- **Menções @nome na conversa em grupo** — escreva `@NomeDoColega` (sem
+  acento/caixa exatos, aceita nome de exibição ou usuário); quem é
+  mencionado vê o balão destacado ("— mencionou você") e recebe toast
+  "Você foi mencionado" quando a janela do grupo está em segundo plano.
+- **Link do projeto** — Ajuda (seção 9. PROJETO) e tela Sobre agora
+  mostram o repositório do projeto (clicável no Sobre).
+
 ## Limpeza de referências de terceiros (v1.25)
 
 - Remoção de toda menção a marca de terceiros de mensagens
@@ -299,6 +312,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
 - v1.24: emojis nas conversas + eu na lista (anotações).
 - v1.25: limpeza de referências a marca de terceiros (mensagens e
   comentários internos); sem mudança de comportamento.
+- v1.26: toast (Win10/11), menções @nome no grupo e link do projeto no
+  Ajuda/Sobre.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

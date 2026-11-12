@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import queue
 import os
+import re
 import threading
 import time
 import tkinter as tk
+import unicodedata
 from tkinter import filedialog, messagebox
 from pathlib import Path
 
@@ -18,9 +20,11 @@ import customtkinter as ctk
 
 from . import (autostart, chat, config, crypto, discovery, files,
                history_view, logger, mass, networks, profile, remote, roster,
-               sfx, single_instance, sysinfo)
+               sfx, single_instance, sysinfo, toaster)
 from . import chatview
 from .store import Store
+
+GITHUB_URL = "https://github.com/edersilvago/lan-messenger"
 
 try:
     from . import tray as tray_mod
@@ -151,6 +155,13 @@ balões e tray sem duplicata.
 - v1.24: emojis nas conversas + eu na lista (anotações).
 - v1.25: limpeza de referências a marca de terceiros (mensagens e
 comentários internos); sem mudança de comportamento.
+- v1.26: notificações do sistema (toast no Win10/11), menções @nome na
+conversa em grupo e link do projeto no Ajuda/Sobre.
+
+9. PROJETO
+- Código-fonte, documentação e releases no GitHub:
+  https://github.com/edersilvago/lan-messenger
+  (aba "Releases" tem os instaladores de cada versão)
 """
 
 
@@ -161,6 +172,33 @@ STATUS_PT = {"online": "disponível", "busy": "ocupado",
 
 def status_pt(status: str) -> str:
     return STATUS_PT.get(str(status or "online"), str(status))
+
+
+# cores do balão mencionado (claro, escuro) — leve toque amarelo
+MENTION_BG = ("#FFF6DE", "#3D3517")
+MENTION_NAME_FG = ("#B45309", "#FFB74D")
+
+
+def _norm_name(s: str) -> str:
+    """minúsculas + sem acento: 'José' == 'jose'."""
+    return unicodedata.normalize("NFKD", s).encode(
+        "ascii", "ignore").decode("ascii").lower()
+
+
+def mentioned_me(text: str, display: str, user: str = "") -> bool:
+    """True se a mensagem contém @<nome> meu (comparação sem acento/caixa).
+
+    Aceita nome de exibição ("@Eder Silva") e usuário ("@eder"). Não casa
+    prefixo: "@joaozinho" não menciona "joao".
+    """
+    tokens = {_norm_name(t) for t in (display, user) if t and t.strip()}
+    if not tokens:
+        return False
+    norm = _norm_name(str(text or ""))
+    for tok in tokens:
+        if re.search("@" + re.escape(tok) + r"(?![\w.-])", norm):
+            return True
+    return False
 
 
 # cor do nome por status (claro, escuro) — volta das cores na lista
@@ -360,21 +398,25 @@ def center_soon(win: tk.Misc) -> None:
 
 
 def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
-                 name: str = "", max_w: int = 380):
+                 name: str = "", max_w: int = 380, mention: bool = False):
     """Balão arredondado (in=esquerda branca, out=direita verde).
 
     clock: "08:12" (recebida) ou "08:12 ✓" (enviada: entregue via ACK;
     nunca azul — o sistema não informa leitura).
+    mention: mensagem de grupo que me menciona (@nome) — fundo amarelado
+    e nome em laranja com "— mencionou você".
     """
     side = "e" if direction == "out" else "w"
-    bg = BUBBLE_OUT_BG if direction == "out" else BUBBLE_IN_BG
+    bg = MENTION_BG if (mention and direction == "in") else (
+        BUBBLE_OUT_BG if direction == "out" else BUBBLE_IN_BG)
     row = ctk.CTkFrame(parent, fg_color="transparent")
     row.pack(fill="x", padx=8, pady=3)
     bubble = ctk.CTkFrame(row, corner_radius=14, fg_color=bg)
     bubble.pack(side="right" if side == "e" else "left",
                 anchor="e" if side == "e" else "w")
     if name and direction == "in":
-        ctk.CTkLabel(bubble, text=name, text_color=BUBBLE_NAME_FG,
+        ctk.CTkLabel(bubble, text=f"{name} — mencionou você" if mention else name,
+                     text_color=MENTION_NAME_FG if mention else BUBBLE_NAME_FG,
                      font=ctk.CTkFont(size=11, weight="bold"),
                      anchor="w").pack(fill="x", padx=12, pady=(8, 0))
     ctk.CTkLabel(bubble, text=text, text_color=BUBBLE_FG,
@@ -990,8 +1032,8 @@ class GroupChatWindow:
         self.scroll = ctk.CTkScrollableFrame(self.win, fg_color=BUBBLE_LOG_BG)
         self.scroll.pack(fill="both", expand=True, padx=6, pady=4)
         self._sys(f"--- conversa em grupo: {dept} ---")
-        ctk.CTkLabel(self.win, text="Texto da mensagem:", anchor="w").pack(
-            fill="x", padx=6)
+        ctk.CTkLabel(self.win, text="Texto da mensagem (@nome menciona):",
+                     anchor="w").pack(fill="x", padx=6)
         self.entry = ctk.CTkTextbox(self.win, height=80)
         self.entry.pack(fill="x", padx=6, pady=2)
         self.entry.bind("<Return>", lambda e: self._on_key("Return"))
@@ -1045,14 +1087,15 @@ class GroupChatWindow:
             return "break"
         return None
 
-    def _dated(self, direction: str, text: str, ts: str, name: str = "") -> None:
+    def _dated(self, direction: str, text: str, ts: str, name: str = "",
+               mention: bool = False) -> None:
         show_pill = ts and self.app.settings.show_datetime
         label = chatview.date_label(ts) if show_pill else ""
         if label and label != self._last_date:
             build_date_pill(self.scroll, label)
             self._last_date = label
         build_bubble(self.scroll, direction, text,
-                     bubble_clock(direction, ts), name=name)
+                     bubble_clock(direction, ts), name=name, mention=mention)
         scroll_end(self.scroll)
 
     def send(self) -> None:
@@ -1075,9 +1118,11 @@ class GroupChatWindow:
         self.entry.delete("1.0", "end")
         self.app.touch()
 
-    def incoming(self, ip: str, info: dict, text: str) -> None:
+    def incoming(self, ip: str, info: dict, text: str,
+                 mention: bool = False) -> None:
         ts = time.strftime("%d/%m/%Y - %H:%M:%S")  # sempre: identifica a hora
-        self._dated("in", text, ts, name=roster.label_of(info))
+        self._dated("in", text, ts, name=roster.label_of(info),
+                    mention=mention)
         self.win.after(0, self._announce)
 
     def _announce(self) -> None:
@@ -2035,6 +2080,29 @@ class App:
     def on_msg_threadsafe(self, msg: dict, ip: str) -> None:
         self._ui_call(self._on_msg, msg, ip)
 
+    def _bring_to_front(self) -> None:
+        """Traz a principal para frente (clique na notificação/toast)."""
+        try:
+            self.root.deiconify()
+            self.root.lift()
+            self.root.focus_force()
+        except tk.TclError:
+            pass
+
+    def _notify(self, title: str, text: str, on_click=None) -> None:
+        """Notificação: toast do sistema (Win10/11); senão balão da bandeja.
+
+        on_click só vale para o toast (clique); no balão é descartado.
+        """
+        if self.settings.toast_enabled and toaster.notify(title, text, on_click):
+            return
+        if self._in_tray and self.tray is not None:
+            self.tray.notify(text, title)
+
+    def _mentioned(self, text: str) -> bool:
+        return mentioned_me(text, self.profile.effective_display(),
+                            config.my_user())
+
     def _autodetect_ids(self) -> None:
         """Preenche IDs vazios lendo o AnyDesk/RustDesk locais (ao iniciar)."""
         p = self.profile
@@ -2055,12 +2123,24 @@ class App:
         # conversa em grupo aberta com este remetente? vai p/ lá (sem 1-1)
         gw = self._group_window_for(ip)
         if msg.get("bcast") and gw is not None:
-            gw.incoming(ip, self.selected_info(ip), text)
+            mentioned = self._mentioned(text)
+            gw.incoming(ip, self.selected_info(ip), text, mention=mentioned)
             self.touch()
-            if self._in_tray and self.tray is not None:
+            gw_focused = False
+            try:
+                gw_focused = bool(gw.win.focused)
+            except tk.TclError:
+                pass
+            if mentioned and not gw_focused:
+                if self._in_tray and self.tray is not None:
+                    self.tray.set_unread(True)
+                self._notify("Você foi mencionado",
+                             f"{self.peer_label(ip)} no grupo {gw.dept}: "
+                             f"{text[:110]}", on_click=self._bring_to_front)
+            elif self._in_tray and self.tray is not None:
                 self.tray.set_unread(True)
-                self.tray.notify(f"[{gw.dept}] {self.peer_label(ip)}: {text[:120]}",
-                                 "Mensagem em grupo")
+                self._notify("Mensagem em grupo",
+                             f"[{gw.dept}] {self.peer_label(ip)}: {text[:120]}")
             # som de broadcast (sem repetição; repetição é só p/ 1-1)
             if not (self.settings.snd_msg_mode == "background" and gw.win.focused):
                 sfx.play(self.settings, "broadcast")
@@ -2079,7 +2159,14 @@ class App:
         self.touch()
         if self._in_tray and self.tray is not None:
             self.tray.set_unread(True)
-            self.tray.notify(f"{self.peer_label(ip)}: {text[:120]}", "Mensagem recebida")
+            # broadcast com @meu-nome (janela de grupo fechada): avisa menção
+            if msg.get("bcast") and self._mentioned(text):
+                self._notify("Você foi mencionado",
+                             f"{self.peer_label(ip)}: {text[:110]}",
+                             on_click=self._bring_to_front)
+            else:
+                self._notify(f"{self.peer_label(ip)}: {text[:120]}",
+                             "Mensagem recebida")
         # -- sons (tela Eventos de Som) --
         event = "broadcast" if msg.get("bcast") else "message"
         w2 = self.chat_windows.get(ip)
@@ -2522,6 +2609,9 @@ class App:
         v_keep = tk.BooleanVar(value=s.keep_focus)
         ctk.CTkCheckBox(m, text="Manter foco do teclado na conversa",
                         variable=v_keep).pack(anchor="w", padx=12)
+        v_toast = tk.BooleanVar(value=s.toast_enabled)
+        ctk.CTkCheckBox(m, text="Notificações do sistema (toast no Windows 10/11)",
+                        variable=v_toast).pack(anchor="w", padx=12)
         ctk.CTkLabel(m, text="Tamanho da Fonte",
                      font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=8, pady=(8, 0))
         v_font = tk.StringVar(value=s.font_size)
@@ -2660,6 +2750,7 @@ class App:
             s.show_datetime = not v_nodate.get()
             s.incoming_behavior = v_behav.get()
             s.keep_focus = v_keep.get()
+            s.toast_enabled = v_toast.get()
             s.font_size = v_font.get()
             s.autostart = auto.get()
             s.theme = v_theme.get() if v_theme.get() in ("Light", "Dark", "System") else "Light"
@@ -2770,7 +2861,7 @@ class App:
 
     def about_dialog(self) -> None:
         """Ajuda e Sobre (atalho ❓ da principal)."""
-        win = ctk_dialog(self.root, f"Sobre {config.APP_NAME}", "380x540")
+        win = ctk_dialog(self.root, f"Sobre {config.APP_NAME}", "380x570")
         try:
             from PIL import Image
             ico = config.asset_path("app.ico")
@@ -2816,6 +2907,10 @@ class App:
                             cursor="hand2")
         site.pack()
         site.bind("<Button-1>", lambda _e: _open("https://www.edersilva.net"))
+        github = ctk.CTkLabel(win, text="github.com/edersilvago/lan-messenger",
+                              text_color="blue", cursor="hand2")
+        github.pack()
+        github.bind("<Button-1>", lambda _e: _open(GITHUB_URL))
         ctk.CTkLabel(win, text="Copyright © 2026. Uso interno.",
                      text_color="gray").pack(pady=(6, 0))
         bot = ctk.CTkFrame(win, fg_color="transparent")

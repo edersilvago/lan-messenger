@@ -1,6 +1,6 @@
 # Histórico de versões
 
-Versão atual: **v1.25**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.26**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
 
 ## v1.0 / v1.1 — base P2P estilo clássico
 - Descoberta UDP, chat TCP direto, arquivos com sha256, presença, histórico local SQLite, instaladores.
@@ -65,7 +65,13 @@ Versão atual: **v1.25**. Cada versão traz mudanças visíveis ao usuário; o b
 ## v1.23 — menus e inbox
 - Menu de botão direito na principal (Atualizar, Novo Grupo, Massa, Ocultar offline); recebidos em `inbox/<Remetente>/`.
 
-## v1.25 — limpeza de terceiros
+## v1.26 — toast e menções
+- Notificações do sistema (toast) no Windows 10/11 para mensagens recebidas — clique na notificação traz o app para frente; Win7/8.1 segue com o balão da bandeja. Opção "Notificações do sistema" em Config > Mensagens.
+- Menções na conversa em grupo: `@nome` (aceita nome de exibição ou usuário; comparação sem acento/caixa) destaca o balão de quem é mencionado ("— mencionou você") e gera toast "Você foi mencionado" quando a janela do grupo está em segundo plano.
+- Link do projeto no Ajuda (seção 9. PROJETO) e na tela Sobre (clicável).
+- `toaster.py` novo; `windows-toasts` só entra no build Win10/11 (excluído do build Win7/py3.8).
+
+## v1.25 - limpeza de terceiros
 - Remoção de toda menção a marca de terceiros de mensagens ao usuário e de comentários/docstrings; nenhum comportamento, protocolo, visual ou regra de negócio alterado.
 
 ## v1.24 — emojis e eu na lista
