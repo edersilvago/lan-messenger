@@ -1,4 +1,4 @@
-"""Diálogo Enviar Mensagem em Massa (tela do Softros) em CustomTkinter.
+"""Diálogo Enviar Mensagem em Massa (tela clássica) em CustomTkinter.
 
 Grupos recolhíveis com caixas de seleção + Todos/Nenhum.
 Envia via fan-out TCP para os IPs marcados e mostra resultado por peer.

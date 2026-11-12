@@ -64,7 +64,7 @@ Para **cada** mudança no app, antes de buildar:
 
 O repositório **não** inclui:
 
-- `assets/sounds/*.wav` — sons de notificação de terceiros (Softros); fornecidos localmente para o build. Sem eles, o app funciona sem som.
+- `assets/sounds/*.wav` — sons de notificação de terceiros; fornecidos localmente para o build. Sem eles, o app funciona sem som.
 - Dados de execução (`settings.json`, `profile.json`, `networks.json`, `peers_cache.json`, `lan_history.db`) — criados automaticamente com defaults na primeira execução.
 - `LEIA-ME-TESTE.txt` — guia interno de teste.
 

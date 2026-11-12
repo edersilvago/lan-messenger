@@ -6,7 +6,7 @@ Uso:
     python -m lan_messenger.app_cli --name MEU-PC --range 10.0.0.1-10.0.0.254
 Comandos: /list /msg IP texto /bcast texto /file IP caminho
           /ranges /addrange FAIXA /delrange FAIXA /hist /quit
-Faixas (p/ VPN): mesmo conceito da tela Rede do Softros.
+Faixas (p/ VPN): mesmo conceito da tela Rede.
 """
 from __future__ import annotations
 

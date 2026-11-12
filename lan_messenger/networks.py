@@ -1,7 +1,7 @@
 """Faixas de broadcast dirigido p/ atravessar VPN/roteadores.
 
 O broadcast limitado (<broadcast>/255.255.255.255) NÃO atravessa VPN.
-Igual ao Softros (tela Rede -> Transmissão), aqui você cadastra faixas:
+Aqui você cadastra faixas:
   "10.0.0.1-10.0.0.254", "192.168.30.1-192.168.30.254"
 
 O Discovery envia beacon UDP unicast p/ cada IP da faixa + p/ o

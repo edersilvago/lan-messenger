@@ -1,4 +1,4 @@
-"""Janela principal estilo Softros em CustomTkinter + árvore por departamento.
+"""Janela principal estilo clássico em CustomTkinter + árvore por departamento.
 
 Uso:  python -m lan_messenger.app_gui
 Backend (protocolo, discovery, arquivos, banco) inalterado: só o visual
@@ -149,6 +149,8 @@ balões e tray sem duplicata.
 - v1.22: cartão de anexo tamanho de balão + arquivos no histórico.
 - v1.23: menu de botão direito na principal + inbox por remetente.
 - v1.24: emojis nas conversas + eu na lista (anotações).
+- v1.25: limpeza de referências a marca de terceiros (mensagens e
+comentários internos); sem mudança de comportamento.
 """
 
 
@@ -199,7 +201,7 @@ TICK_DELIVERED = "✓"
 
 
 def _tooltip(widget: tk.Widget, text: str) -> None:
-    """Balão flutuante estilo Softros (ex 'Configurações')."""
+    """Balão flutuante estilo clássico (ex 'Configurações')."""
     tip: list = []
 
     def show(_e=None) -> None:
@@ -828,7 +830,7 @@ class ChatWindow:
         self.send_files(list(fpaths))
 
     def send_files(self, fpaths: list[str]) -> None:
-        """Envio em thread com barra de progresso + Cancelar (estilo Softros)."""
+        """Envio em thread com barra de progresso + Cancelar (estilo clássico)."""
         if getattr(self, "_sending", False):
             messagebox.showinfo("Arquivos", "Já há um envio em andamento.", parent=self.win)
             return
@@ -1176,7 +1178,7 @@ class App:
                 self.root.iconbitmap(ico)
             except tk.TclError:
                 pass
-        # atalhos da janela principal (estilo Softros; ícones em assets/)
+        # atalhos da janela principal (estilo clássico; ícones em assets/)
         bar = ctk.CTkFrame(self.root, fg_color="transparent")
         bar.pack(fill="x", padx=2, pady=2)
         self._icons: dict[str, object] = {}
@@ -1292,7 +1294,7 @@ class App:
         self.root.after(30000, self._away_check)
 
     def _on_quit(self) -> None:
-        """Fechar vai p/ bandeja (comportamento Softros); Sair no tray encerra."""
+        """Fechar vai p/ bandeja (comportamento clássico); Sair no tray encerra."""
         if tray_mod is not None and tray_mod.HAVE_TRAY and not self._really_quit:
             self.hide_to_tray()
             return
@@ -1426,7 +1428,7 @@ class App:
             self.status_message_dialog(status)
 
     def status_message_dialog(self, status: str) -> None:
-        """Mensagem por Status com contagem regressiva (estilo Softros)."""
+        """Mensagem por Status com contagem regressiva (estilo clássico)."""
         title = "Ocupado" if status == "busy" else "Ausente"
         default = (self.settings.busy_msg if status == "busy"
                    else self.settings.away_msg)
@@ -1746,7 +1748,7 @@ class App:
             return "nunca visto"
         return f"há {max(0, int(age))}s"  # relógio do colega adiantado: nunca negativo
 
-    # -- cliques e menus de contexto (estilo Softros) ---------------------
+    # -- cliques e menus de contexto (estilo clássico) ---------------------
     def _on_left_click(self, event) -> None:
         """Compat: um clique no usuário abre a conversa."""
 
@@ -1760,7 +1762,7 @@ class App:
         return self._selected_group
 
     def _on_tree_key(self, event) -> None:
-        """Enter/F2/Del/Ctrl+Up/Ctrl+Down (atalhos do Softros na lista)."""
+        """Enter/F2/Del/Ctrl+Up/Ctrl+Down (atalhos clássicos na lista)."""
         key = getattr(event, "keysym", "")
         if key == "Return" and self._selected_ip:
             self.open_chat(self._selected_ip)
@@ -2210,7 +2212,7 @@ class App:
             self.refresh()
 
     def edit_ranges(self) -> None:
-        """Equivalente à tela Rede do Softros (Transmissão/Broadcasts)."""
+        """Equivalente à tela Rede (Transmissão/Broadcasts)."""
         from tkinter import simpledialog
         win = ctk_dialog(self.root, "Rede - Faixas de transmissão (VPN)",
                          "480x660", resizable=(True, True))
@@ -2377,7 +2379,7 @@ class App:
         return e
 
     def my_data_dialog(self) -> None:
-        """Tela Informações do Usuário do Softros (OK sempre visível)."""
+        """Tela Informações do Usuário (OK sempre visível)."""
         win = ctk_dialog(self.root, "Minhas Informações Pessoais",
                          "440x640", resizable=(True, True))
         p = self.profile
@@ -2456,7 +2458,7 @@ class App:
         self.settings_dialog()
 
     def settings_dialog(self) -> None:
-        """Configurações (Geral + Transferência de Arquivo + Log), estilo Softros."""
+        """Configurações (Geral + Transferência de Arquivo + Log), estilo clássico."""
         win = ctk_dialog(self.root, "Configurações", "520x560",
                          resizable=(True, True))
         nb = ctk.CTkTabview(win)
@@ -2733,7 +2735,7 @@ class App:
                       command=win.destroy).pack(side="right", padx=4)
 
     def mass_dialog(self) -> None:
-        """Enviar Mensagem em Massa com checkboxes por grupo (tela do Softros)."""
+        """Enviar Mensagem em Massa com checkboxes por grupo (tela clássica)."""
         groups = roster.group_peers(self.disc.get_roster(), hide_offline=True,
                                     aliases=self.settings.group_aliases,
                                     hidden=self.settings.hidden_groups,

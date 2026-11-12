@@ -307,7 +307,7 @@ class Discovery:
             self._peers[ip] = dict(info)
             self._known[ip] = dict(info)
 
-    # -- faixas de rede (estilo Softros: tela Rede -> Transmissão) ------
+    # -- faixas de rede (estilo clássico: tela Rede -> Transmissão) ------
     def get_ranges(self) -> list[str]:
         with self._lock:
             return list(self._ranges)
@@ -452,7 +452,7 @@ class Discovery:
                     with self._lock:
                         self.bind_ok = False
                         self.bind_error = (f"porta UDP {self.udp_port} em uso: {e}. "
-                                           "Feche a outra cópia/Softros e aguarde.")
+                                           "Feche a outra cópia e aguarde.")
                     sock.close()
                     self._stop.wait(5.0)
                     continue  # tenta de novo (porta pode liberar)

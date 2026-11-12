@@ -60,7 +60,7 @@ def main() -> None:
     src.write_text("dados sigilosos " * 5000, encoding="utf-8")  # ~80KB = 2 blocos
     files.send_file("127.0.0.1", src, from_name="A", tcp_port=50402, key=key)
     time.sleep(0.5)
-    outs = list(inbox.glob("*"))
+    outs = [p for p in inbox.glob("*/*") if p.is_file()]  # inbox/<Remetente>/<arquivo> (v1.23)
     assert outs and outs[0].read_text(encoding="utf-8") == src.read_text(encoding="utf-8")
     fsrv.stop()
     print("OK arquivo E2E com PSK (multibloco)")

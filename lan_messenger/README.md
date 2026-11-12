@@ -1,6 +1,6 @@
 # LAN Messenger (MVP P2P) - Windows, sem servidor
 
-Esqueleto funcional estilo Softros LAN Messenger: discovery via UDP broadcast,
+Esqueleto funcional estilo clássico LAN Messenger: discovery via UDP broadcast,
 chat via TCP direto e arquivos via TCP separado. Histórico local em SQLite.
 
 ## Estrutura
@@ -9,7 +9,7 @@ chat via TCP direto e arquivos via TCP separado. Histórico local em SQLite.
 lan_messenger/
   config.py         portas, beacon, IPs locais
   protocol.py       framing JSON (4 bytes len + payload)
-  networks.py       faixas de transmissão p/ VPN (igual tela Rede do Softros)
+  networks.py       faixas de transmissão p/ VPN (igual tela Rede)
   networks.json     faixas salvas (ex 10.0.0.1-10.0.0.254)
   profile.py        Meus Dados + Geral (profile.json/settings.json)
   roster.py         agrupamento por departamento + presença
@@ -57,7 +57,7 @@ python -m lan_messenger.test_vpn_ranges
 ```
 Esperado: `OK msg`, `OK file`, `PASSOU` em ambos.
 
-## VPN unindo 2 redes (ex 10.0.0.x + 192.168.30.x) - igual tela Rede do Softros
+## VPN unindo 2 redes (ex 10.0.0.x + 192.168.30.x) - igual tela Rede
 
 O broadcast limitado NÃO atravessa roteador/VPN. Por isso o Discovery envia
 beacon UDP **unicast para cada IP das faixas** + broadcast dirigido (.255).
@@ -120,7 +120,7 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   Conversas usam o ícone Conversa, botões Enviar/Fechar padronizados e
   piscam na barra ao chegar mensagem sem foco (FlashWindowEx).
   Lista: ícone User nos usuários, User Group nos grupos; clique abre a
-  conversa; botão direito tem os menus do Softros (mover de grupo,
+  conversa; botão direito tem os menus clássicos (mover de grupo,
   ver informações, atualizar, novo grupo, ocultar offline).
 - Tray usa o `app.ico` oficial (ponto vermelho = não lida); duplo-clique
   abre a principal. Tray fica visível mesmo com a janela aberta, com menu
@@ -171,7 +171,7 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
 - Cache de colegas em `%APPDATA%\LANMessenger\peers_cache.json`: ao abrir,
   os colegas da última sessão são procurados na hora (UDP + TCP).
 - "Sinal fraco" agora só aparece quando nem UDP nem TCP alcançam o colega
-  — se o TCP passa, a lista fica limpa como no Softros.
+  — se o TCP passa, a lista fica limpa como esperado.
 
 ## Conversa em balões (v1.15)
 
@@ -240,9 +240,15 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   funciona como anotações (loopback real, vai p/ o histórico).
 - Chamadas de worker p/ UI via fila thread-safe (sem travar).
 
+## Limpeza de referências de terceiros (v1.25)
+
+- Remoção de toda menção a marca de terceiros de mensagens
+  exibidas ao usuário e de comentários/docstrings; nenhum comportamento,
+  protocolo, visual ou regra de negócio foi alterado.
+
 ## Histórico de versões
 
-- v1.0/v1.1: base P2P estilo Softros — descoberta UDP, chat TCP direto,
+- v1.0/v1.1: base P2P estilo clássico — descoberta UDP, chat TCP direto,
   arquivos com sha256, presença, histórico local SQLite, instaladores.
 - v1.2: descoberta imediata (sonda ping ao abrir), firewall em todos os
   perfis, instalador idempotente (remove regras antes de criar).
@@ -259,7 +265,7 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
 - v1.6: grupo não recolhe sozinho; "Abrir pasta" clicável; conversas
   abrem em 650x620 (mínimo 620x560).
 - v1.7: "Abrir pasta" abre a inbox; massa responsiva (mínimo 760x460);
-  sons WAV do Softros; janelas com tamanho mínimo.
+  sons WAV de notificação; janelas com tamanho mínimo.
 - v1.8: ícone no tray com a janela aberta; botões de status no rodapé e
   no menu do tray (manual não volta sozinho).
 - v1.9: hardware do contato (CPU/RAM/disco); cores de status na lista;
@@ -291,6 +297,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
 - v1.22: cartão de anexo tamanho de balão + arquivos no histórico.
 - v1.23: menu de botão direito na principal + inbox por remetente.
 - v1.24: emojis nas conversas + eu na lista (anotações).
+- v1.25: limpeza de referências a marca de terceiros (mensagens e
+  comentários internos); sem mudança de comportamento.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

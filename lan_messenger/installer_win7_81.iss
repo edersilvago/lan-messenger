@@ -2,7 +2,7 @@
 ;   C:\tools\inno\ISCC.exe lan_messenger\installer_win7_81.iss
 ; Saída: installer\Setup_LANMessenger_win7_81.exe
 #define MyAppName "LAN Messenger"
-#define MyAppVersion "1.24"
+#define MyAppVersion "1.25"
 #define MyAppExe "LANMessenger.exe"
 
 [Setup]

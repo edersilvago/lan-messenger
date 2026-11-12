@@ -1,4 +1,4 @@
-"""Visualizador do Histórico (tela do Softros) em CustomTkinter.
+"""Visualizador do Histórico (tela clássica) em CustomTkinter.
 
 Esquerda: usuários com conversa. Direita: log Incoming/Outgoing com data/hora.
 Topo: busca no histórico + Exportar TXT + Fechar.

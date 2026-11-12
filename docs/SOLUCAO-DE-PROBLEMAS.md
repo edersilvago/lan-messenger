@@ -2,7 +2,7 @@
 
 ## Lista de usuários vazia (não encontro o colega)
 
-1. **Tela Rede → Diagnóstico**: escuta UDP 50000 = OK? `ERRO (porta em uso)` → feche a outra cópia do app (ou o Softros, que usa as mesmas portas).
+1. **Tela Rede → Diagnóstico**: escuta UDP 50000 = OK? `ERRO (porta em uso)` → feche a outra cópia do app (ou outro app que use as mesmas portas).
 2. **Último recebido = "nunca"** mas *Testar IP* do colega alcança? → UDP está bloqueado (firewall ou VPN filtrando UDP). Libere o firewall **nos dois lados** e use **+ IP manual** — o app confirma presença por TCP a cada ~10s.
 3. **Testar IP falhou?** → sem rota entre as redes: confira `ping` e a VPN.
 4. Faixas digitadas erradas? `/ranges` (CLI) ou tela Rede mostram o cadastrado.

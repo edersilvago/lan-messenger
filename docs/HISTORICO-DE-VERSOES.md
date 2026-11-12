@@ -1,8 +1,8 @@
 # Histórico de versões
 
-Versão atual: **v1.24**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.25**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
 
-## v1.0 / v1.1 — base P2P
+## v1.0 / v1.1 — base P2P estilo clássico
 - Descoberta UDP, chat TCP direto, arquivos com sha256, presença, histórico local SQLite, instaladores.
 
 ## v1.2 — descoberta imediata
@@ -64,6 +64,9 @@ Versão atual: **v1.24**. Cada versão traz mudanças visíveis ao usuário; o b
 
 ## v1.23 — menus e inbox
 - Menu de botão direito na principal (Atualizar, Novo Grupo, Massa, Ocultar offline); recebidos em `inbox/<Remetente>/`.
+
+## v1.25 — limpeza de terceiros
+- Remoção de toda menção a marca de terceiros de mensagens ao usuário e de comentários/docstrings; nenhum comportamento, protocolo, visual ou regra de negócio alterado.
 
 ## v1.24 — emojis e eu na lista
 - Botão 😊 nas conversas (1-1 e grupo); você aparece na lista como "(você)" e a conversa própria funciona como anotações (loopback real, vai para o histórico); chamadas de worker para a UI via fila thread-safe.

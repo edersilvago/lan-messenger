@@ -1,4 +1,4 @@
-"""Log em arquivos texto (tela Log do Softros).
+"""Log em arquivos texto (tela Log clássica).
 
 - Habilitar/desabilitar via settings.log_enabled.
 - "single": um arquivo lan_messages.log.

@@ -1,4 +1,4 @@
-"""Sons do Windows via winsound (stdlib) — tela Eventos de Som do Softros.
+"""Sons do Windows via winsound (stdlib) — tela Eventos de Som clássica.
 
 Sem arquivos .wav: cada evento tem um padrão de beeps. Fora do Windows
 ou com sons desabilitados, play() é no-op e retorna False.
