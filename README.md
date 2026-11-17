@@ -13,6 +13,7 @@ Compatível com Windows 7 SP1 / 8 / 8.1 / 10 / 11 (64 bits), com instaladores de
 - **Criptografia PSK**: AES-256-GCM no texto do chat e nos blocos de arquivo (64 KB) quando a chave é distribuída entre os PCs.
 - **Tray, status e autostart**: minimiza para a bandeja, status Disponível/Ocupado/Ausente que viaja no beacon, iniciar com o Windows.
 - **Notificações toast + menções**: aviso nativo do Windows 10/11 (clique traz o app à frente; Win7 usa o balão da bandeja) e `@nome` na conversa em grupo destaca quem foi mencionado.
+- **Links clicáveis**: URLs `http(s)://` e `www.` nas mensagens abrem no navegador (v1.27).
 - **Instaladores versionados**: Inno Setup gera `Setup_LANMessenger_win10_11_vX.Y.exe` e `Setup_LANMessenger_win7_81_vX.Y.exe` com firewall e desinstalação completos.
 
 ## Início rápido (desenvolvedor)

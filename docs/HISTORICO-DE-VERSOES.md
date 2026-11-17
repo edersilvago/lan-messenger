@@ -1,6 +1,6 @@
 # Histórico de versões
 
-Versão atual: **v1.26**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.27**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
 
 ## v1.0 / v1.1 — base P2P estilo clássico
 - Descoberta UDP, chat TCP direto, arquivos com sha256, presença, histórico local SQLite, instaladores.
@@ -64,6 +64,10 @@ Versão atual: **v1.26**. Cada versão traz mudanças visíveis ao usuário; o b
 
 ## v1.23 — menus e inbox
 - Menu de botão direito na principal (Atualizar, Novo Grupo, Massa, Ocultar offline); recebidos em `inbox/<Remetente>/`.
+
+## v1.27 — links clicáveis
+- Links `http://`/`https://`/`www.` nas mensagens aparecem em azul sublinhado e abrem no navegador ao clicar; pontuação final da frase não entra no link. Balões sem link seguem com um único label (visual inalterado).
+- `split_url_segments()`/`open_url()`/`clean_url()` em `app_gui.py`; teste `test_links.py`.
 
 ## v1.26 — toast e menções
 - Notificações do sistema (toast) no Windows 10/11 para mensagens recebidas — clique na notificação traz o app para frente; Win7/8.1 segue com o balão da bandeja. Opção "Notificações do sistema" em Config > Mensagens.

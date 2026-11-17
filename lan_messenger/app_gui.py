@@ -69,6 +69,8 @@ com HH:MM:SS sempre dentro do balão; tique único cinza = entregue no app
 do colega (sem tique azul: o sistema não informa leitura). Separadores de
 data agrupam o histórico ("14 de outubro de 2026"; desligável em
 Config > Mensagens).
+- Links http:// ou www. na mensagem viram azul clicável e abrem no
+navegador (a pontuação final da frase não entra no link).
 - Anexos aparecem em cartão (selo, nome, pasta/tamanho, hora) com botão
 "Abrir pasta".
 - Duplo-clique ou Enter abre a conversa. Enter envia (ou Ctrl+Enter,
@@ -157,6 +159,7 @@ balões e tray sem duplicata.
 comentários internos); sem mudança de comportamento.
 - v1.26: notificações do sistema (toast no Win10/11), menções @nome na
 conversa em grupo e link do projeto no Ajuda/Sobre.
+- v1.27: links http(s)/www. nas mensagens viram clicáveis no balão.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -397,6 +400,55 @@ def center_soon(win: tk.Misc) -> None:
         pass
 
 
+# link dentro do balão (claro, escuro) — azul clicável
+BUBBLE_LINK_FG = ("#1A5FB4", "#8AB4F8")
+
+URL_RE = re.compile(r"(https?://[^\s]+|www\.[^\s]+)", re.IGNORECASE)
+
+
+def open_url(url: str) -> None:
+    """Abre link no navegador padrão; www. sem esquema ganha https://."""
+    if url.lower().startswith("www."):
+        url = "https://" + url
+    try:
+        import webbrowser
+        webbrowser.open(url)
+    except Exception:
+        pass
+
+
+def clean_url(url: str) -> str:
+    """Tira pontuação final do link ('fim da frase.', ')' sem par aberto)."""
+    while url and url[-1] in ".,;:!?":
+        url = url[:-1]
+    if url.endswith(")") and "(" not in url:
+        url = url[:-1]
+    return url
+
+
+def split_url_segments(text: str) -> list[tuple[str, str]]:
+    """Divide texto em segmentos ("text"|"url", conteúdo) para links clicáveis.
+
+    Sem URL na mensagem: [("text", texto)] — balão segue com um label só.
+    """
+    text = str(text or "")
+    hits = list(URL_RE.finditer(text))
+    if not hits:
+        return [("text", text)]
+    segs: list[tuple[str, str]] = []
+    pos = 0
+    for m in hits:
+        url = clean_url(m.group(0))
+        end = m.start() + len(url)  # pontuação final fica no texto
+        if m.start() > pos:
+            segs.append(("text", text[pos:m.start()]))
+        segs.append(("url", url))
+        pos = end
+    if pos < len(text):
+        segs.append(("text", text[pos:]))
+    return segs
+
+
 def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
                  name: str = "", max_w: int = 380, mention: bool = False):
     """Balão arredondado (in=esquerda branca, out=direita verde).
@@ -419,9 +471,26 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
                      text_color=MENTION_NAME_FG if mention else BUBBLE_NAME_FG,
                      font=ctk.CTkFont(size=11, weight="bold"),
                      anchor="w").pack(fill="x", padx=12, pady=(8, 0))
-    ctk.CTkLabel(bubble, text=text, text_color=BUBBLE_FG,
-                 font=ctk.CTkFont(size=13), anchor="w", justify="left",
-                 wraplength=max_w).pack(fill="x", padx=12, pady=(4, 0))
+    segs = split_url_segments(text)
+    if len(segs) == 1 and segs[0][0] == "text":
+        ctk.CTkLabel(bubble, text=text, text_color=BUBBLE_FG,
+                     font=ctk.CTkFont(size=13), anchor="w", justify="left",
+                     wraplength=max_w).pack(fill="x", padx=12, pady=(4, 0))
+    else:
+        # texto com link: segmentos em linhas; URL azul e clicável
+        for kind, content in segs:
+            if kind == "url":
+                lk = ctk.CTkLabel(bubble, text=content, text_color=BUBBLE_LINK_FG,
+                                  font=ctk.CTkFont(size=13, underline=True),
+                                  anchor="w", justify="left",
+                                  wraplength=max_w, cursor="hand2")
+                lk.pack(fill="x", padx=12, pady=(4, 0))
+                lk.bind("<Button-1>", lambda _e, u=content: open_url(u))
+            else:
+                ctk.CTkLabel(bubble, text=content, text_color=BUBBLE_FG,
+                             font=ctk.CTkFont(size=13), anchor="w",
+                             justify="left", wraplength=max_w).pack(
+                    fill="x", padx=12, pady=(4, 0))
     if clock:
         ctk.CTkLabel(bubble, text=clock, text_color=BUBBLE_TS_FG,
                      font=ctk.CTkFont(size=10),

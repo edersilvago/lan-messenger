@@ -240,6 +240,12 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   funciona como anotações (loopback real, vai p/ o histórico).
 - Chamadas de worker p/ UI via fila thread-safe (sem travar).
 
+## Links clicáveis nas mensagens (v1.27)
+
+- Links `http://`, `https://` e `www.` dentro das mensagens aparecem em
+  azul sublinhado e abrem no navegador ao clicar; pontuação final da
+  frase não entra no link. Balões sem link seguem idênticos.
+
 ## Toast e menções (v1.26)
 
 - **Notificações do sistema (toast)** — mensagens recebidas avisam por
@@ -314,6 +320,7 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   comentários internos); sem mudança de comportamento.
 - v1.26: toast (Win10/11), menções @nome no grupo e link do projeto no
   Ajuda/Sobre.
+- v1.27: links http(s)/www. nas mensagens viram clicáveis no balão.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

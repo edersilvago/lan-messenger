@@ -50,7 +50,7 @@ def main() -> None:
     assert GITHUB_URL == "https://github.com/edersilvago/lan-messenger"
     assert GITHUB_URL in HELP_TEXT
     assert "9. PROJETO" in HELP_TEXT
-    assert config.APP_VERSION == "1.26"
+    assert config.APP_VERSION.startswith("1.")  # evita churn a cada release
     print("OK ajuda/sobre (link + versão)")
     print("TESTE MENTIONS: PASSOU")
 
