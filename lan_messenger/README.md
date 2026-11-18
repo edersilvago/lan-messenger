@@ -240,6 +240,18 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   funciona como anotações (loopback real, vai p/ o histórico).
 - Chamadas de worker p/ UI via fila thread-safe (sem travar).
 
+## Log de erros do aplicativo (v1.28)
+
+- Falhas internas (callbacks da interface, threads de rede/arquivos e
+  exceções não tratadas) são gravadas em
+  `%APPDATA%\LANMessenger\logs\crash.log`, com data, hora, contexto e
+  traceback completo.
+- O diálogo "Application Error" do Tk foi substituído por um aviso curto
+  na barra de status; o app continua funcionando.
+- Config > Log > "Abrir pasta do log de erros" abre a pasta no Explorer
+  para enviar o arquivo ao suporte.
+- Nenhuma regra de negócio, protocolo, socket ou banco foi alterada.
+
 ## Links clicáveis nas mensagens (v1.27)
 
 - Links `http://`, `https://` e `www.` dentro das mensagens aparecem em
@@ -321,6 +333,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
 - v1.26: toast (Win10/11), menções @nome no grupo e link do projeto no
   Ajuda/Sobre.
 - v1.27: links http(s)/www. nas mensagens viram clicáveis no balão.
+- v1.28: log de erros em `logs\crash.log` (data, hora e traceback), aviso
+  no rodapé em vez de diálogo e botão para abrir a pasta do log.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

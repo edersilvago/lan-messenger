@@ -14,6 +14,7 @@ Compatível com Windows 7 SP1 / 8 / 8.1 / 10 / 11 (64 bits), com instaladores de
 - **Tray, status e autostart**: minimiza para a bandeja, status Disponível/Ocupado/Ausente que viaja no beacon, iniciar com o Windows.
 - **Notificações toast + menções**: aviso nativo do Windows 10/11 (clique traz o app à frente; Win7 usa o balão da bandeja) e `@nome` na conversa em grupo destaca quem foi mencionado.
 - **Links clicáveis**: URLs `http(s)://` e `www.` nas mensagens abrem no navegador (v1.27).
+- **Log de erros**: falhas internas vão para `%APPDATA%\LANMessenger\logs\crash.log` com data, hora e traceback; aviso no rodapé e botão para abrir a pasta (v1.28).
 - **Instaladores versionados**: Inno Setup gera `Setup_LANMessenger_win10_11_vX.Y.exe` e `Setup_LANMessenger_win7_81_vX.Y.exe` com firewall e desinstalação completos.
 
 ## Início rápido (desenvolvedor)

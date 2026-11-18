@@ -12,6 +12,7 @@ import re
 import threading
 import time
 import tkinter as tk
+import traceback
 import unicodedata
 from tkinter import filedialog, messagebox
 from pathlib import Path
@@ -25,6 +26,27 @@ from . import chatview
 from .store import Store
 
 GITHUB_URL = "https://github.com/edersilvago/lan-messenger"
+
+CRASH_LOG = config.APP_DATA / "logs" / "crash.log"
+
+
+def log_crash(context: str, exc: BaseException | None = None) -> str:
+    """Grava a exceção em logs/crash.log para análise. Nunca levanta.
+
+    Formato: cabeçalho com data/hora + contexto, traceback completo e
+    linha em branco. Devolve o caminho do arquivo (para a statusbar).
+    """
+    try:
+        CRASH_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(CRASH_LOG, "a", encoding="utf-8") as f:
+            f.write(f"--- {time.strftime('%Y-%m-%d %H:%M:%S')} [{context}] ---\n")
+            if exc is not None:
+                traceback.print_exception(type(exc), exc, exc.__traceback__,
+                                          file=f)
+            f.write("\n")
+    except Exception:
+        pass
+    return str(CRASH_LOG)
 
 try:
     from . import tray as tray_mod
@@ -115,6 +137,9 @@ o app confirma presença também por TCP (porta do chat): se o TCP passa,
 o colega volta sozinho em segundos, mesmo com o UDP bloqueado — sem
 precisar fechar e abrir o app.
 - Sem rota/TCP = mensagem falha na hora com aviso (não fica pendente).
+- Erro interno: o app grava data, hora e traceback em
+%APPDATA%\\LANMessenger\\logs\\crash.log (Config > Log >
+"Abrir pasta do log de erros"). Envie esse arquivo ao suporte.
 
 8. HISTÓRICO DE VERSÕES
 - v1.0/v1.1: base P2P (descoberta UDP, chat TCP, arquivos, presença,
@@ -160,6 +185,8 @@ comentários internos); sem mudança de comportamento.
 - v1.26: notificações do sistema (toast no Win10/11), menções @nome na
 conversa em grupo e link do projeto no Ajuda/Sobre.
 - v1.27: links http(s)/www. nas mensagens viram clicáveis no balão.
+- v1.28: log de erros em logs\crash.log (data, hora e traceback) e
+diálogos de falha substituídos por aviso no rodapé.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -297,6 +324,8 @@ def center_window(win: tk.Misc, parent: tk.Misc | None = None) -> None:
         win.geometry(f"+{max(0, x)}+{max(0, y)}")
     except tk.TclError:
         pass
+    except Exception as e:
+        log_crash("center_window", e)
 
 
 def esc_closes(win: tk.Misc, action) -> None:
@@ -362,6 +391,8 @@ def scroll_end(scroll) -> None:
             scroll._parent_canvas.yview_moveto(1.0)
         except (tk.TclError, AttributeError):
             pass
+        except Exception as e:  # frame destruído no meio do after(120)
+            log_crash("scroll_end", e)
     _go()
     try:
         scroll.after(120, _go)
@@ -381,6 +412,8 @@ def center_fixed(win: tk.Misc, geom: str) -> None:
         win.geometry(f"{w}x{h}+{max(0, x)}+{max(0, y)}")
     except tk.TclError:
         pass
+    except Exception as e:
+        log_crash("center_fixed", e)
 
 
 def center_soon(win: tk.Misc) -> None:
@@ -391,6 +424,9 @@ def center_soon(win: tk.Misc) -> None:
         try:
             win.update_idletasks()
         except tk.TclError:
+            return
+        except Exception as e:  # janela em estado estranho: não derruba a UI
+            log_crash("center_soon", e)
             return
         center_window(win, None)
 
@@ -787,7 +823,16 @@ class ChatWindow:
         self.update_status_line(info)
         self.win.after(0, self._announce)
         if s.keep_focus:
-            self.win.after(0, self.entry.focus_set)
+            self.win.after(0, self._focus_entry)
+
+    def _focus_entry(self) -> None:
+        """Foco no campo de texto (nunca derruba se a janela fechou)."""
+        try:
+            self.entry.focus_set()
+        except tk.TclError:
+            pass
+        except Exception as e:
+            log_crash("chat_focus", e)
 
     def update_status_line(self, info: dict) -> None:
         """Curta em cima ('está ausente'); mensagem em negrito embaixo."""
@@ -808,6 +853,9 @@ class ChatWindow:
             self.win.lift()
         except tk.TclError:
             pass
+        except Exception as e:  # janela fechando durante o after(0)
+            log_crash("chat_announce", e)
+            return
         if not self.focused:
             flash_window(self.win)
 
@@ -1199,6 +1247,9 @@ class GroupChatWindow:
             self.win.lift()
         except tk.TclError:
             pass
+        except Exception as e:  # janela fechando durante o after(0)
+            log_crash("group_announce", e)
+            return
         flash_window(self.win)
 
 class App:
@@ -1271,6 +1322,21 @@ class App:
         root.bind("<Return>", self._on_tree_key, add="+")
         root.bind("<Control-Up>", self._on_tree_key, add="+")
         root.bind("<Control-Down>", self._on_tree_key, add="+")
+        self._install_crash_reporter()
+
+    def _install_crash_reporter(self) -> None:
+        """Erros em callbacks Tk (after, bindings) vão para logs/crash.log.
+
+        Substitui o diálogo modal "Application Error" (que não mostra o
+        traceback útil) por registro em arquivo + aviso na statusbar.
+        """
+        def report(_tp, exc, _tb) -> None:
+            path = log_crash("callback Tk", exc)
+            try:
+                self.statusbar.configure(text=f"Erro interno registrado em {path}")
+            except Exception:
+                pass
+        self.root.report_callback_exception = report
 
     def _on_esc_main(self) -> None:
         """ESC na principal minimiza (bandeja, ou barra se configurado)."""
@@ -1383,6 +1449,15 @@ class App:
         except OSError as e:
             messagebox.showerror("Arquivos recebidos", str(e), parent=self.root)
 
+    def _open_crash_folder(self) -> None:
+        """Abre a pasta do log de erros (logs/crash.log) no Explorer."""
+        folder = CRASH_LOG.parent
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+            os.startfile(str(folder))  # type: ignore[attr-defined]  # Windows
+        except OSError as e:
+            messagebox.showerror("Log de erros", str(e), parent=self.root)
+
     def _remember_tree_state(self, _e=None) -> None:
         """Compat: estado de grupos recolhidos já vive em _collapsed_groups."""
 
@@ -1474,6 +1549,8 @@ class App:
                     fn(*args, **kwargs)
                 except (tk.TclError, RuntimeError):
                     pass
+                except Exception as e:  # erro de regra não pode parar a fila
+                    log_crash(f"ui:{getattr(fn, '__name__', '?')}", e)
         except queue.Empty:
             pass
         if not self._really_quit:
@@ -1489,15 +1566,18 @@ class App:
         try:
             while True:
                 cmd = self._tray_cmds.get_nowait()
-                if cmd == "open":
-                    self._show_from_tray()
-                elif cmd == "toggle":
-                    self.toggle_status()
-                elif isinstance(cmd, str) and cmd.startswith("status:"):
-                    self.set_user_status(cmd.split(":", 1)[1], manual=True)
-                elif cmd == "quit":
-                    self.shutdown()
-                    return
+                try:
+                    if cmd == "open":
+                        self._show_from_tray()
+                    elif cmd == "toggle":
+                        self.toggle_status()
+                    elif isinstance(cmd, str) and cmd.startswith("status:"):
+                        self.set_user_status(cmd.split(":", 1)[1], manual=True)
+                    elif cmd == "quit":
+                        self.shutdown()
+                        return
+                except Exception as e:
+                    log_crash("tray_cmd", e)
         except queue.Empty:
             pass
         if not self._really_quit:
@@ -2157,13 +2237,17 @@ class App:
             self.root.focus_force()
         except tk.TclError:
             pass
+        except Exception as e:
+            log_crash("bring_to_front", e)
 
     def _notify(self, title: str, text: str, on_click=None) -> None:
         """Notificação: toast do sistema (Win10/11); senão balão da bandeja.
 
-        on_click só vale para o toast (clique); no balão é descartado.
+        on_click só vale para o toast (clique); é despachado pela fila da
+        UI, pois o WinRT chama o callback em outra thread.
         """
-        if self.settings.toast_enabled and toaster.notify(title, text, on_click):
+        cb = (lambda: self._ui_call(on_click)) if on_click is not None else None
+        if self.settings.toast_enabled and toaster.notify(title, text, cb):
             return
         if self._in_tray and self.tray is not None:
             self.tray.notify(text, title)
@@ -2322,7 +2406,11 @@ class App:
         try:
             while True:
                 header, sender, box, done = self._file_asks.get_nowait()
-                self._ask_file_dialog(header, sender, box, done)
+                try:
+                    self._ask_file_dialog(header, sender, box, done)
+                except Exception as e:  # diálogo falhou: libera o worker
+                    done.set()
+                    log_crash("file_ask", e)
         except queue.Empty:
             pass
         self.root.after(250, self._pump_file_asks)
@@ -2741,6 +2829,14 @@ class App:
         ctk.CTkButton(fl, text="...", width=40,
                       command=lambda: logdir_var.set(
                           filedialog.askdirectory(parent=win) or logdir_var.get())).pack(side="left", padx=4)
+        ctk.CTkLabel(lg, text="Erros do aplicativo",
+                     font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=8, pady=(10, 0))
+        ctk.CTkLabel(lg, text="Falhas internas são gravadas em logs\\crash.log "
+                              "(com data, hora e traceback) para análise.",
+                     wraplength=430, justify="left", text_color="gray").pack(
+            anchor="w", padx=12)
+        ctk.CTkButton(lg, text="Abrir pasta do log de erros", width=200,
+                      command=self._open_crash_folder).pack(anchor="w", padx=12, pady=4)
 
         # -- aba Eventos de Som --
         nb.add("Sons")
