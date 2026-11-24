@@ -1,6 +1,6 @@
 # Histórico de versões
 
-Versão atual: **v1.34**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.35**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
 
 ## v1.0 / v1.1 — base P2P estilo clássico
 - Descoberta UDP, chat TCP direto, arquivos com sha256, presença, histórico local SQLite, instaladores.
@@ -64,6 +64,12 @@ Versão atual: **v1.34**. Cada versão traz mudanças visíveis ao usuário; o b
 
 ## v1.23 — menus e inbox
 - Menu de botão direito na principal (Atualizar, Novo Grupo, Massa, Ocultar offline); recebidos em `inbox/<Remetente>/`.
+
+## v1.35 — tamanho da fonte aplicado à conversa
+- Configurações > Mensagens > Tamanho da Fonte agora altera corpo das mensagens, links, autor, citações, horários, datas, avisos do sistema e cartões de anexo.
+- A troca aplica imediatamente aos balões já abertos e também às novas mensagens, em conversas 1-1 e em grupo.
+- Escala mantida: Normal 9 px, Grande 11 px e Extra grande 13 px; elementos auxiliares acompanham proporcionalmente.
+- Testes responsivos cobrem largura mínima de 620 px, notebook 1366 px, Full HD 1920 px e 4K 3840 px.
 
 ## v1.34 — proporção completa e histórico sempre visível
 - Balões de texto passam de 75% com teto de 1200 px para 94% da largura disponível, sem teto fixo; janela maximizada aproveita quase toda a conversa.

@@ -154,6 +154,9 @@ recebe com tudo desligado.
 "Responder" (ou duplo-clique na mensagem); a citação (autor + trecho)
 aparece dentro do balão enviado com barra verde, estilo WhatsApp. A
 prévia fica acima do campo de texto (✕ cancela).
+- Config > Mensagens > Tamanho da Fonte altera imediatamente mensagens,
+links, citações, nomes, horários, datas, avisos e anexos nas conversas
+1-1 e em grupo (Normal 9 px, Grande 11 px, Extra grande 13 px).
 - Mensagem em massa: marca grupos/usuários com caixas de seleção,
 Todos/Nenhum.
 - Conversa em grupo: janela por departamento, recebe os broadcasts.
@@ -251,6 +254,8 @@ ao abrir ou rolar conversas; callbacks Tk não executam mais eventos
 pendentes dentro de outros callbacks.
 - v1.34: balões usam 94% da conversa sem teto fixo; citação compacta
 (48–80 px); abrir/maximizar preserva área visível e posição da rolagem.
+- v1.35: Tamanho da Fonte passa a alterar todos os textos da conversa,
+inclusive balões já abertos; layout validado de 620 px até 4K.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -587,9 +592,26 @@ def bubble_max_w(parent: tk.Misc) -> int:
     return max(300, int(w * 0.94))
 
 
+def _chat_role(widget, role: str):
+    """Marca widget cujo tamanho acompanha Configurações > Mensagens."""
+    try:
+        widget._chat_font_role = role
+    except Exception:
+        pass
+    return widget
+
+
+def quote_height(text_len: int, wrap: int, font_px: int) -> int:
+    """Altura compacta da citação para 1–3 linhas e fonte atual."""
+    char_px = max(5, round(font_px * 0.55))
+    chars = max(20, wrap // char_px)
+    lines = max(1, min(3, (text_len + chars - 1) // chars))
+    return 20 + (font_px + 1) * 2 + (lines - 1) * (font_px + 3)
+
+
 def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
                  name: str = "", max_w: int | None = None, mention: bool = False,
-                 reply: dict | None = None):
+                 reply: dict | None = None, font_px: int = 13):
     """Balão arredondado (in=esquerda branca, out=direita verde).
 
     clock: "08:12" (recebida) ou "08:12 ✓" (enviada: entregue via ACK;
@@ -611,10 +633,12 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
     bubble.pack(side="right" if side == "e" else "left",
                 anchor="e" if side == "e" else "w")
     if name and direction == "in":
-        ctk.CTkLabel(bubble, text=f"{name} — mencionou você" if mention else name,
-                     text_color=MENTION_NAME_FG if mention else BUBBLE_NAME_FG,
-                     font=ctk.CTkFont(size=11, weight="bold"),
-                     anchor="w").pack(fill="x", padx=12, pady=(8, 0))
+        name_lbl = _chat_role(ctk.CTkLabel(
+            bubble, text=f"{name} — mencionou você" if mention else name,
+            text_color=MENTION_NAME_FG if mention else BUBBLE_NAME_FG,
+            font=ctk.CTkFont(size=max(8, font_px - 2), weight="bold"),
+            anchor="w"), "name")
+        name_lbl.pack(fill="x", padx=12, pady=(8, 0))
     if reply:
         # citação no topo do balão (v1.30): barra verde + autor + trecho
         # largura própria (não puxa o balão: wraplength curto + 1 linha)
@@ -624,9 +648,7 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
         if len(str(reply.get("text", ""))) > 140:
             qtext += "…"
         qwrap = max(160, int(max_w * 0.88))
-        qchars = max(20, qwrap // 7)
-        qlines = max(1, min(3, (len(qtext) + qchars - 1) // qchars))
-        quote_h = 48 + (qlines - 1) * 16
+        quote_h = quote_height(len(qtext), qwrap, font_px)
         quote = ctk.CTkFrame(bubble, fg_color=qbg, corner_radius=6,
                              height=quote_h)
         quote.pack_propagate(False)
@@ -638,28 +660,30 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
                            height=quote_h - 8)
         qin.pack_propagate(False)
         qin.pack(fill="x", padx=(3, 7), pady=(4, 5))
-        ctk.CTkLabel(qin, text=qname,
-                     text_color=REPLY_QUOTE_NAME,
-                     font=ctk.CTkFont(size=11, weight="bold"),
-                     anchor="w").pack(fill="x")
-        qlbl = ctk.CTkLabel(qin, text=qtext,
-                            text_color=REPLY_QUOTE_FG,
-                            font=ctk.CTkFont(size=12), anchor="w",
-                            justify="left",
-                            wraplength=qwrap)
+        qname_lbl = _chat_role(ctk.CTkLabel(
+            qin, text=qname, text_color=REPLY_QUOTE_NAME,
+            font=ctk.CTkFont(size=max(8, font_px - 2), weight="bold"),
+            anchor="w"), "quote_name")
+        qname_lbl.pack(fill="x")
+        qlbl = _chat_role(ctk.CTkLabel(
+            qin, text=qtext, text_color=REPLY_QUOTE_FG,
+            font=ctk.CTkFont(size=max(8, font_px - 1)), anchor="w",
+            justify="left", wraplength=qwrap), "quote")
         qlbl.pack(fill="x")
         try:
             qlbl._bubble_wrap = 0.88  # reajusta ao redimensionar (v1.34)
             qlbl._quote_frame = quote
             qlbl._quote_body = qin
             qlbl._quote_text_len = len(qtext)
+            qlbl._quote_font_px = font_px
         except Exception:
             pass
     segs = split_url_segments(text)
     if len(segs) == 1 and segs[0][0] == "text":
-        lbl = ctk.CTkLabel(bubble, text=text, text_color=BUBBLE_FG,
-                           font=ctk.CTkFont(size=13), anchor="w",
-                           justify="left", wraplength=max_w)
+        lbl = _chat_role(ctk.CTkLabel(
+            bubble, text=text, text_color=BUBBLE_FG,
+            font=ctk.CTkFont(size=font_px), anchor="w",
+            justify="left", wraplength=max_w), "body")
         lbl.pack(fill="x", padx=12, pady=(4, 0))
         try:
             lbl._bubble_wrap = 1.0
@@ -669,10 +693,11 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
         # texto com link: segmentos em linhas; URL azul e clicável
         for kind, content in segs:
             if kind == "url":
-                lk = ctk.CTkLabel(bubble, text=content, text_color=BUBBLE_LINK_FG,
-                                  font=ctk.CTkFont(size=13, underline=True),
-                                  anchor="w", justify="left",
-                                  wraplength=max_w, cursor="hand2")
+                lk = _chat_role(ctk.CTkLabel(
+                    bubble, text=content, text_color=BUBBLE_LINK_FG,
+                    font=ctk.CTkFont(size=font_px, underline=True),
+                    anchor="w", justify="left",
+                    wraplength=max_w, cursor="hand2"), "link")
                 lk.pack(fill="x", padx=12, pady=(4, 0))
                 lk.bind("<Button-1>", lambda _e, u=content: open_url(u))
                 try:
@@ -680,17 +705,19 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
                 except Exception:
                     pass
             else:
-                lb = ctk.CTkLabel(bubble, text=content, text_color=BUBBLE_FG,
-                                  font=ctk.CTkFont(size=13), anchor="w",
-                                  justify="left", wraplength=max_w)
+                lb = _chat_role(ctk.CTkLabel(
+                    bubble, text=content, text_color=BUBBLE_FG,
+                    font=ctk.CTkFont(size=font_px), anchor="w",
+                    justify="left", wraplength=max_w), "body")
                 lb.pack(fill="x", padx=12, pady=(4, 0))
                 try:
                     lb._bubble_wrap = 1.0
                 except Exception:
                     pass
     if clock:
-        ts_lbl = ctk.CTkLabel(bubble, text=clock, text_color=BUBBLE_TS_FG,
-                              font=ctk.CTkFont(size=10), anchor="e")
+        ts_lbl = _chat_role(ctk.CTkLabel(
+            bubble, text=clock, text_color=BUBBLE_TS_FG,
+            font=ctk.CTkFont(size=max(8, font_px - 3)), anchor="e"), "clock")
         ts_lbl.pack(fill="x", padx=12, pady=(0, 8))
         try:
             row._clock_label = ts_lbl  # v1.29: p/ virar tique ao entregar
@@ -721,10 +748,9 @@ def rewrap_bubbles(scroll, max_w: int | None = None) -> int:
                 quote = getattr(w, "_quote_frame", None)
                 body = getattr(w, "_quote_body", None)
                 if quote is not None and body is not None:
-                    chars = max(20, wrap // 7)
                     size = int(getattr(w, "_quote_text_len", 1))
-                    lines = max(1, min(3, (size + chars - 1) // chars))
-                    height = 48 + (lines - 1) * 16
+                    px = int(getattr(w, "_quote_font_px", 13))
+                    height = quote_height(size, wrap, px)
                     quote.configure(height=height)
                     body.configure(height=height - 8)
                 n += 1
@@ -734,6 +760,44 @@ def rewrap_bubbles(scroll, max_w: int | None = None) -> int:
             stack.extend(w.winfo_children())
         except tk.TclError:
             pass
+    return n
+
+
+def apply_chat_fonts(scroll, font_px: int) -> int:
+    """Aplica tamanho configurado a todos os textos já renderizados."""
+    specs = {
+        "body": (font_px, "normal", False),
+        "link": (font_px, "normal", True),
+        "name": (max(8, font_px - 2), "bold", False),
+        "quote": (max(8, font_px - 1), "normal", False),
+        "quote_name": (max(8, font_px - 2), "bold", False),
+        "clock": (max(8, font_px - 3), "normal", False),
+        "date": (max(8, font_px - 2), "normal", False),
+        "system": (max(8, font_px - 2), "normal", False),
+        "file_name": (font_px, "bold", False),
+        "file_meta": (max(7, font_px - 2), "normal", False),
+        "file_link": (max(7, font_px - 2), "normal", True),
+    }
+    n = 0
+    stack = [scroll]
+    while stack:
+        widget = stack.pop()
+        role = getattr(widget, "_chat_font_role", "")
+        if role in specs:
+            size, weight, underline = specs[role]
+            try:
+                widget.configure(font=ctk.CTkFont(
+                    size=size, weight=weight, underline=underline))
+                if role == "quote":
+                    widget._quote_font_px = font_px
+                n += 1
+            except (tk.TclError, ValueError):
+                pass
+        try:
+            stack.extend(widget.winfo_children())
+        except tk.TclError:
+            pass
+    rewrap_bubbles(scroll)
     return n
 
 
@@ -803,13 +867,14 @@ def bind_rewrap(win: tk.Misc, scroll) -> None:
         pass
 
 
-def build_date_pill(parent: tk.Misc, label: str):
+def build_date_pill(parent: tk.Misc, label: str, font_px: int = 13):
     """Pílula de data centralizada ("14 de outubro de 2026")."""
     row = ctk.CTkFrame(parent, fg_color="transparent")
     row.pack(fill="x", padx=8, pady=6)
-    pill = ctk.CTkLabel(row, text=label, fg_color=BUBBLE_SEP_BG,
-                        text_color=BUBBLE_SEP_FG, corner_radius=10,
-                        font=ctk.CTkFont(size=11), padx=12, pady=4)
+    pill = _chat_role(ctk.CTkLabel(
+        row, text=label, fg_color=BUBBLE_SEP_BG,
+        text_color=BUBBLE_SEP_FG, corner_radius=10,
+        font=ctk.CTkFont(size=max(8, font_px - 2)), padx=12, pady=4), "date")
     pill.pack(anchor="center")
     return row
 
@@ -859,19 +924,24 @@ def build_file_card(parent: tk.Misc, name: str, clock: str,
     body.pack(side="left", fill="both", expand=True, padx=(0, 8), pady=8)
     import textwrap as _tw
     wrapped_name = "\n".join(_tw.wrap(name, CARD_NAME_CHARS) or [name])
-    ctk.CTkLabel(body, text=wrapped_name, text_color=BUBBLE_FG,
-                 font=ctk.CTkFont(size=px, weight="bold"),
-                 anchor="w", justify="left").pack(fill="x")
+    file_name = _chat_role(ctk.CTkLabel(
+        body, text=wrapped_name, text_color=BUBBLE_FG,
+        font=ctk.CTkFont(size=px, weight="bold"),
+        anchor="w", justify="left"), "file_name")
+    file_name.pack(fill="x")
     foot = ctk.CTkFrame(body, fg_color="transparent")
     foot.pack(fill="x", pady=(6, 0))
     if clock:
-        ctk.CTkLabel(foot, text=clock, text_color=BUBBLE_TS_FG,
-                     font=ctk.CTkFont(size=max(7, px - 2))).pack(side="left")
-    ctk.CTkButton(foot, text="Abrir pasta", fg_color="transparent",
-                  text_color=LINK_BLUE, hover_color=("gray85", "gray25"),
-                  font=ctk.CTkFont(size=max(7, px - 2), underline=True),
-                  command=open_cmd, width=80,
-                  height=24).pack(side="right")
+        file_clock = _chat_role(ctk.CTkLabel(
+            foot, text=clock, text_color=BUBBLE_TS_FG,
+            font=ctk.CTkFont(size=max(7, px - 2))), "file_meta")
+        file_clock.pack(side="left")
+    file_link = _chat_role(ctk.CTkButton(
+        foot, text="Abrir pasta", fg_color="transparent",
+        text_color=LINK_BLUE, hover_color=("gray85", "gray25"),
+        font=ctk.CTkFont(size=max(7, px - 2), underline=True),
+        command=open_cmd, width=80, height=24), "file_link")
+    file_link.pack(side="right")
     return row
 
 
@@ -1048,10 +1118,14 @@ class ChatWindow:
 
     def apply_font(self) -> None:
         """Tamanho da fonte (tela Mensagens)."""
-        # balões usam tamanho fixo de leitura; entrada acompanha a config
         px = chatview.font_px(self.app.settings.font_size)
         try:
             self.entry.configure(font=ctk.CTkFont(size=px))
+            self._reply_lbl.configure(
+                font=ctk.CTkFont(size=max(8, px - 2), weight="bold"))
+            self._reply_excerpt.configure(font=ctk.CTkFont(size=px))
+            apply_chat_fonts(self.scroll, px)
+            scroll_end(self.scroll)
         except tk.TclError:
             pass
 
@@ -1082,20 +1156,24 @@ class ChatWindow:
 
     # -- renderização (só visual; dados e ordem preservados) -------------
     def _sys(self, line: str) -> None:
-        ctk.CTkLabel(self.scroll, text=line, text_color="gray",
-                     font=ctk.CTkFont(size=11)).pack(pady=2)
+        px = chatview.font_px(self.app.settings.font_size)
+        lbl = _chat_role(ctk.CTkLabel(
+            self.scroll, text=line, text_color="gray",
+            font=ctk.CTkFont(size=max(8, px - 2))), "system")
+        lbl.pack(pady=2)
 
     def _dated(self, direction: str, text: str, ts: str, name: str = "",
                mid: str = "", pending: bool = False,
                reply: dict | None = None) -> None:
         show_pill = ts and self.app.settings.show_datetime
         label = chatview.date_label(ts) if show_pill else ""
+        px = chatview.font_px(self.app.settings.font_size)
         if label and label != self._last_date:
-            build_date_pill(self.scroll, label)
+            build_date_pill(self.scroll, label, px)
             self._last_date = label
         row = build_bubble(self.scroll, direction, text,
                            bubble_clock(direction, ts, pending=pending),
-                           name=name, reply=reply)
+                           name=name, reply=reply, font_px=px)
         if pending and mid:
             self._pending[mid] = row
             self._pending_ts[mid] = ts
@@ -1572,12 +1650,17 @@ class GroupChatWindow:
         px = chatview.font_px(self.app.settings.font_size)
         try:
             self.entry.configure(font=ctk.CTkFont(size=px))
+            apply_chat_fonts(self.scroll, px)
+            scroll_end(self.scroll)
         except tk.TclError:
             pass
 
     def _sys(self, line: str) -> None:
-        ctk.CTkLabel(self.scroll, text=line, text_color="gray",
-                     font=ctk.CTkFont(size=11)).pack(pady=2)
+        px = chatview.font_px(self.app.settings.font_size)
+        lbl = _chat_role(ctk.CTkLabel(
+            self.scroll, text=line, text_color="gray",
+            font=ctk.CTkFont(size=max(8, px - 2))), "system")
+        lbl.pack(pady=2)
 
     def _append(self, line: str) -> None:
         self._sys(line)
@@ -1601,11 +1684,13 @@ class GroupChatWindow:
                mention: bool = False) -> None:
         show_pill = ts and self.app.settings.show_datetime
         label = chatview.date_label(ts) if show_pill else ""
+        px = chatview.font_px(self.app.settings.font_size)
         if label and label != self._last_date:
-            build_date_pill(self.scroll, label)
+            build_date_pill(self.scroll, label, px)
             self._last_date = label
         build_bubble(self.scroll, direction, text,
-                     bubble_clock(direction, ts), name=name, mention=mention)
+                     bubble_clock(direction, ts), name=name, mention=mention,
+                     font_px=px)
         scroll_end(self.scroll)
 
     def send(self) -> None:

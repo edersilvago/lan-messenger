@@ -371,6 +371,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   abrir ou rolar conversas; centralização e rolagem não recursivas.
 - v1.34: balões usam 94% da conversa sem teto fixo; citação mede 48–80
   px; abrir/maximizar recalcula a área visível sem deixar tela branca.
+- v1.35: Tamanho da Fonte altera corpo, links, citações, nomes, horários,
+  datas, avisos e anexos já abertos; validado de 620 px até 4K.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

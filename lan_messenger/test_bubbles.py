@@ -105,7 +105,9 @@ def main() -> None:
         assert app_gui.bubble_max_w(W(1)) == 380          # sem medida: padrão
         assert app_gui.bubble_max_w(W(0)) == 380
         assert app_gui.bubble_max_w(W(600)) == 564        # 94% de 600
+        assert app_gui.bubble_max_w(W(1366)) == 1284      # notebook HD
         assert app_gui.bubble_max_w(W(1920)) == 1804      # sem teto fixo
+        assert app_gui.bubble_max_w(W(3840)) == 3609      # monitor 4K
         assert app_gui.bubble_max_w(W(300)) == 300        # piso (94% = 282)
         # sem medida própria: cai na janela pai
         assert app_gui.bubble_max_w(W(0, W(1000))) == 940
@@ -127,6 +129,33 @@ def main() -> None:
             assert int(str(lbl.cget("wraplength"))) == max(120, int(600 * frac))
         assert app_gui.rewrap_bubbles(host, 600) == n     # mesmo valor: estável
         print(f"OK largura proporcional ({n} rotulos reajustados)")
+
+        # 6. tamanho configurado altera balões existentes, não só a entrada
+        font_row = app_gui.build_bubble(
+            host, "out", "Texto da mensagem", "10:30:00 ✓", font_px=9,
+            reply={"id": "x", "name": "Ana", "text": "Trecho citado"})
+        r.update_idletasks()
+
+        def _roles(w):
+            out = {}
+            role = getattr(w, "_chat_font_role", "")
+            if role:
+                out.setdefault(role, []).append(w)
+            for child in w.winfo_children():
+                child_roles = _roles(child)
+                for key, values in child_roles.items():
+                    out.setdefault(key, []).extend(values)
+            return out
+
+        roles = _roles(font_row)
+        assert int(roles["body"][0].cget("font").cget("size")) == 9
+        assert int(roles["quote"][0].cget("font").cget("size")) == 8
+        changed = app_gui.apply_chat_fonts(host, 13)
+        assert changed >= 4, changed
+        assert int(roles["body"][0].cget("font").cget("size")) == 13
+        assert int(roles["quote"][0].cget("font").cget("size")) == 12
+        assert int(roles["clock"][0].cget("font").cget("size")) == 10
+        print("OK fonte Normal -> Extra grande nos baloes existentes")
         print("TESTE BUBBLES: PASSOU")
     finally:
         r.destroy()
