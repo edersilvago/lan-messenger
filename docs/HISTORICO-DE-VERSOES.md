@@ -1,6 +1,6 @@
 # Histórico de versões
 
-Versão atual: **v1.35**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.36**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
 
 ## v1.0 / v1.1 — base P2P estilo clássico
 - Descoberta UDP, chat TCP direto, arquivos com sha256, presença, histórico local SQLite, instaladores.
@@ -64,6 +64,12 @@ Versão atual: **v1.35**. Cada versão traz mudanças visíveis ao usuário; o b
 
 ## v1.23 — menus e inbox
 - Menu de botão direito na principal (Atualizar, Novo Grupo, Massa, Ocultar offline); recebidos em `inbox/<Remetente>/`.
+
+## v1.36 — tamanho da fonte digitado em pixels
+- As opções Normal/Grande/Extra grande foram substituídas por campo numérico em Configurações > Mensagens.
+- Aceita qualquer número inteiro entre 8 e 32 px; valor inválido exibe aviso e não fecha a configuração.
+- A prévia muda enquanto o usuário digita; ao confirmar, todas as conversas abertas atualizam imediatamente.
+- Configurações antigas são migradas automaticamente: Normal → 9 px, Grande → 11 px, Extra grande → 13 px.
 
 ## v1.35 — tamanho da fonte aplicado à conversa
 - Configurações > Mensagens > Tamanho da Fonte agora altera corpo das mensagens, links, autor, citações, horários, datas, avisos do sistema e cartões de anexo.

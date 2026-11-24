@@ -5,7 +5,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from . import config
+from . import chatview, config
 
 
 @dataclass
@@ -58,7 +58,7 @@ class Settings:
     incoming_behavior: str = "foreground"  # "foreground" | "minimize"
     keep_focus: bool = False          # manter foco do teclado na conversa
     toast_enabled: bool = True        # notificações do sistema (toast Win10/11)
-    font_size: str = "large"          # "normal" | "large" | "xlarge"
+    font_size: int = 11               # px digitado (8–32); legado é migrado
     group_aliases: dict = field(default_factory=dict)  # dept -> apelido
     hidden_groups: list = field(default_factory=list)  # depts ocultos
     custom_groups: list = field(default_factory=list)  # Adicionar Novo Grupo
@@ -83,8 +83,7 @@ class Settings:
             self.snd_repeat_sec = 5
         if self.incoming_behavior not in ("foreground", "minimize"):
             self.incoming_behavior = "foreground"
-        if self.font_size not in ("normal", "large", "xlarge"):
-            self.font_size = "large"
+        self.font_size = chatview.font_px(self.font_size)
         if self.file_accept not in ("auto", "ask"):
             self.file_accept = "auto"
         if self.theme not in ("Light", "Dark", "System"):
@@ -135,6 +134,7 @@ def load(base: str | Path | None = None) -> tuple[Profile, Settings]:
                 settings.file_accept = "auto" if d["auto_download_files"] else "ask"
     except (ValueError, UnicodeDecodeError, OSError):
         pass
+    settings.font_size = chatview.font_px(settings.font_size)
     return profile, settings
 
 

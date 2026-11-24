@@ -373,6 +373,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   px; abrir/maximizar recalcula a área visível sem deixar tela branca.
 - v1.35: Tamanho da Fonte altera corpo, links, citações, nomes, horários,
   datas, avisos e anexos já abertos; validado de 620 px até 4K.
+- v1.36: Tamanho da Fonte vira campo numérico de 8–32 px, com prévia
+  instantânea e migração das opções antigas (Normal/Grande/Extra grande).
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

@@ -5,6 +5,8 @@ import re
 from datetime import datetime
 
 FONT_SIZES = {"normal": 9, "large": 11, "xlarge": 13}
+MIN_FONT_PX = 8
+MAX_FONT_PX = 32
 DEFAULT_CHAT_GEOMETRY = "650x620"
 MIN_CHAT_WIDTH = 620
 MIN_CHAT_HEIGHT = 560
@@ -37,8 +39,15 @@ def conversation_geometry(saved: str) -> str:
     return DEFAULT_CHAT_GEOMETRY
 
 
-def font_px(font_size: str) -> int:
-    return FONT_SIZES.get(font_size, FONT_SIZES["large"])
+def font_px(font_size: str | int) -> int:
+    """Converte preferência antiga ou px digitado; limita a 8–32 px."""
+    if str(font_size) in FONT_SIZES:
+        return FONT_SIZES[str(font_size)]
+    try:
+        px = int(str(font_size).strip())
+    except (TypeError, ValueError):
+        px = FONT_SIZES["large"]
+    return max(MIN_FONT_PX, min(MAX_FONT_PX, px))
 
 
 def format_line(direction: str, who: str, text: str, ts: str = "",

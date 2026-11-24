@@ -154,9 +154,10 @@ recebe com tudo desligado.
 "Responder" (ou duplo-clique na mensagem); a citação (autor + trecho)
 aparece dentro do balão enviado com barra verde, estilo WhatsApp. A
 prévia fica acima do campo de texto (✕ cancela).
-- Config > Mensagens > Tamanho da Fonte altera imediatamente mensagens,
-links, citações, nomes, horários, datas, avisos e anexos nas conversas
-1-1 e em grupo (Normal 9 px, Grande 11 px, Extra grande 13 px).
+- Config > Mensagens > Tamanho da Fonte: digite qualquer valor inteiro
+entre 8 e 32 px. A mudança altera imediatamente mensagens, links,
+citações, nomes, horários, datas, avisos e anexos nas conversas 1-1 e
+em grupo.
 - Mensagem em massa: marca grupos/usuários com caixas de seleção,
 Todos/Nenhum.
 - Conversa em grupo: janela por departamento, recebe os broadcasts.
@@ -256,6 +257,8 @@ pendentes dentro de outros callbacks.
 (48–80 px); abrir/maximizar preserva área visível e posição da rolagem.
 - v1.35: Tamanho da Fonte passa a alterar todos os textos da conversa,
 inclusive balões já abertos; layout validado de 620 px até 4K.
+- v1.36: fonte deixa de ter três opções fixas; campo numérico aceita
+qualquer tamanho inteiro entre 8 e 32 px, com prévia instantânea.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -3356,18 +3359,23 @@ class App:
                         variable=v_toast).pack(anchor="w", padx=12)
         ctk.CTkLabel(m, text="Tamanho da Fonte",
                      font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=8, pady=(8, 0))
-        v_font = tk.StringVar(value=s.font_size)
+        v_font = tk.StringVar(value=str(chatview.font_px(s.font_size)))
         ff = ctk.CTkFrame(m, fg_color="transparent")
-        ff.pack(fill="x", padx=12)
-        for label, val in (("Normal", "normal"), ("Grande", "large"), ("Extra grande", "xlarge")):
-            ctk.CTkRadioButton(ff, text=label, variable=v_font, value=val,
-                               command=lambda: preview.configure(
-                                   font=("TkDefaultFont", chatview.font_px(v_font.get())))).pack(
-                side="left", padx=6)
+        ff.pack(fill="x", padx=12, pady=2)
+        ctk.CTkLabel(ff, text="Tamanho (px):").pack(side="left")
+        font_entry = ctk.CTkEntry(ff, textvariable=v_font, width=70)
+        font_entry.pack(side="left", padx=(6, 8))
+        ctk.CTkLabel(ff, text="8 a 32 px", text_color="gray").pack(side="left")
         ctk.CTkLabel(m, text="Visualização:").pack(anchor="w", padx=12)
         preview = ctk.CTkLabel(m, text="Exemplo de Texto", fg_color=("gray85", "gray30"))
         preview.pack(fill="x", padx=12, pady=2)
         preview.configure(font=("TkDefaultFont", chatview.font_px(s.font_size)))
+
+        def _preview_font(_event=None) -> None:
+            preview.configure(
+                font=("TkDefaultFont", chatview.font_px(v_font.get())))
+
+        font_entry.bind("<KeyRelease>", _preview_font, add="+")
 
         # -- aba Transferência de Arquivo --
         nb.add("Transferência")
@@ -3501,7 +3509,23 @@ class App:
             s.incoming_behavior = v_behav.get()
             s.keep_focus = v_keep.get()
             s.toast_enabled = v_toast.get()
-            s.font_size = v_font.get()
+            try:
+                font_px = int(v_font.get().strip())
+            except (TypeError, ValueError):
+                messagebox.showwarning(
+                    "Tamanho da Fonte",
+                    "Digite um número inteiro entre 8 e 32 px.",
+                    parent=win)
+                font_entry.focus_set()
+                return
+            if not chatview.MIN_FONT_PX <= font_px <= chatview.MAX_FONT_PX:
+                messagebox.showwarning(
+                    "Tamanho da Fonte",
+                    "Digite um valor entre 8 e 32 px.",
+                    parent=win)
+                font_entry.focus_set()
+                return
+            s.font_size = font_px
             s.autostart = auto.get()
             s.theme = v_theme.get() if v_theme.get() in ("Light", "Dark", "System") else "Light"
             try:

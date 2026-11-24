@@ -130,7 +130,7 @@ def main() -> None:
         assert app_gui.rewrap_bubbles(host, 600) == n     # mesmo valor: estável
         print(f"OK largura proporcional ({n} rotulos reajustados)")
 
-        # 6. tamanho configurado altera balões existentes, não só a entrada
+        # 6. px configurado altera balões existentes, não só a entrada
         font_row = app_gui.build_bubble(
             host, "out", "Texto da mensagem", "10:30:00 ✓", font_px=9,
             reply={"id": "x", "name": "Ana", "text": "Trecho citado"})
@@ -150,12 +150,12 @@ def main() -> None:
         roles = _roles(font_row)
         assert int(roles["body"][0].cget("font").cget("size")) == 9
         assert int(roles["quote"][0].cget("font").cget("size")) == 8
-        changed = app_gui.apply_chat_fonts(host, 13)
+        changed = app_gui.apply_chat_fonts(host, 18)
         assert changed >= 4, changed
-        assert int(roles["body"][0].cget("font").cget("size")) == 13
-        assert int(roles["quote"][0].cget("font").cget("size")) == 12
-        assert int(roles["clock"][0].cget("font").cget("size")) == 10
-        print("OK fonte Normal -> Extra grande nos baloes existentes")
+        assert int(roles["body"][0].cget("font").cget("size")) == 18
+        assert int(roles["quote"][0].cget("font").cget("size")) == 17
+        assert int(roles["clock"][0].cget("font").cget("size")) == 15
+        print("OK fonte 9 -> 18 px nos baloes existentes")
         print("TESTE BUBBLES: PASSOU")
     finally:
         r.destroy()
