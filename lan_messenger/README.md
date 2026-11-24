@@ -365,6 +365,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   autor + trecho) e prévia acima do campo de texto.
 - v1.31: duplo-clique na mensagem responde; citação com largura/altura
   ajustadas; trava contra travamento ao centralizar janelas.
+- v1.32: texto do balão proporcional à janela (75% da largura, entre 300
+  e 1200 px) e reajuste automático ao redimensionar.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

@@ -244,6 +244,8 @@ verde (autor + trecho), prévia acima do campo de texto.
 - v1.31: duplo-clique na mensagem também responde; citação do balão
 com altura/espelho ajustados; correção de travamento ao centralizar
 janelas.
+- v1.32: texto dos balões proporcional à janela (75% da largura, com
+reajuste automático ao redimensionar).
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -561,8 +563,29 @@ def split_url_segments(text: str) -> list[tuple[str, str]]:
     return segs
 
 
+def bubble_max_w(parent: tk.Misc) -> int:
+    """Largura de quebra do balão proporcional à janela (v1.32).
+
+    75% da largura real, entre 300 e 1200 px: janela pequena acompanha a
+    tela, maximizada usa quase toda a linha (como o exemplo do usuário).
+    """
+    w = 0
+    try:
+        w = parent.winfo_width()
+    except Exception:
+        w = 0
+    if w <= 1:
+        try:
+            w = parent.winfo_toplevel().winfo_width()
+        except Exception:
+            w = 0
+    if w <= 1:
+        return 380
+    return max(300, min(1200, int(w * 0.75)))
+
+
 def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
-                 name: str = "", max_w: int = 380, mention: bool = False,
+                 name: str = "", max_w: int | None = None, mention: bool = False,
                  reply: dict | None = None):
     """Balão arredondado (in=esquerda branca, out=direita verde).
 
@@ -572,7 +595,10 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
     e nome em laranja com "— mencionou você".
     reply: cita mensagem específica (v1.30) — bloco com barra verde,
     nome do autor e trecho, no topo do balão (estilo WhatsApp).
+    max_w: None = calcula pela largura da janela (v1.32).
     """
+    if max_w is None:
+        max_w = bubble_max_w(parent)
     side = "e" if direction == "out" else "w"
     bg = MENTION_BG if (mention and direction == "in") else (
         BUBBLE_OUT_BG if direction == "out" else BUBBLE_IN_BG)
@@ -605,15 +631,26 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
                      text_color=REPLY_QUOTE_NAME,
                      font=ctk.CTkFont(size=11, weight="bold"),
                      anchor="w").pack(fill="x")
-        ctk.CTkLabel(qin, text=qtext,
-                     text_color=REPLY_QUOTE_FG,
-                     font=ctk.CTkFont(size=12), anchor="w", justify="left",
-                     wraplength=220).pack(fill="x")
+        qlbl = ctk.CTkLabel(qin, text=qtext,
+                            text_color=REPLY_QUOTE_FG,
+                            font=ctk.CTkFont(size=12), anchor="w",
+                            justify="left",
+                            wraplength=max(160, int(max_w * 0.6)))
+        qlbl.pack(fill="x")
+        try:
+            qlbl._bubble_wrap = 0.6  # reajusta ao redimensionar (v1.32)
+        except Exception:
+            pass
     segs = split_url_segments(text)
     if len(segs) == 1 and segs[0][0] == "text":
-        ctk.CTkLabel(bubble, text=text, text_color=BUBBLE_FG,
-                     font=ctk.CTkFont(size=13), anchor="w", justify="left",
-                     wraplength=max_w).pack(fill="x", padx=12, pady=(4, 0))
+        lbl = ctk.CTkLabel(bubble, text=text, text_color=BUBBLE_FG,
+                           font=ctk.CTkFont(size=13), anchor="w",
+                           justify="left", wraplength=max_w)
+        lbl.pack(fill="x", padx=12, pady=(4, 0))
+        try:
+            lbl._bubble_wrap = 1.0
+        except Exception:
+            pass
     else:
         # texto com link: segmentos em linhas; URL azul e clicável
         for kind, content in segs:
@@ -624,11 +661,19 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
                                   wraplength=max_w, cursor="hand2")
                 lk.pack(fill="x", padx=12, pady=(4, 0))
                 lk.bind("<Button-1>", lambda _e, u=content: open_url(u))
+                try:
+                    lk._bubble_wrap = 1.0
+                except Exception:
+                    pass
             else:
-                ctk.CTkLabel(bubble, text=content, text_color=BUBBLE_FG,
-                             font=ctk.CTkFont(size=13), anchor="w",
-                             justify="left", wraplength=max_w).pack(
-                    fill="x", padx=12, pady=(4, 0))
+                lb = ctk.CTkLabel(bubble, text=content, text_color=BUBBLE_FG,
+                                  font=ctk.CTkFont(size=13), anchor="w",
+                                  justify="left", wraplength=max_w)
+                lb.pack(fill="x", padx=12, pady=(4, 0))
+                try:
+                    lb._bubble_wrap = 1.0
+                except Exception:
+                    pass
     if clock:
         ts_lbl = ctk.CTkLabel(bubble, text=clock, text_color=BUBBLE_TS_FG,
                               font=ctk.CTkFont(size=10), anchor="e")
@@ -640,6 +685,67 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
     else:
         ctk.CTkLabel(bubble, text="", font=ctk.CTkFont(size=4)).pack(pady=(0, 6))
     return row
+
+
+def rewrap_bubbles(scroll, max_w: int | None = None) -> int:
+    """Reajusta o wraplength de todos os balões à largura atual (v1.32).
+
+    Volta quantos rótulos foram ajustados. Nunca levanta: janela no
+    meio do fechamento é ignorada.
+    """
+    if max_w is None:
+        max_w = bubble_max_w(scroll)
+    n = 0
+    stack = [scroll]
+    while stack:
+        w = stack.pop()
+        frac = getattr(w, "_bubble_wrap", None)
+        if frac:
+            try:
+                w.configure(wraplength=max(120, int(max_w * float(frac))))
+                n += 1
+            except (tk.TclError, ValueError):
+                pass
+        try:
+            stack.extend(w.winfo_children())
+        except tk.TclError:
+            pass
+    return n
+
+
+def bind_rewrap(win: tk.Misc, scroll) -> None:
+    """Ao redimensionar a janela, requebra o texto dos balões (v1.32).
+
+    Debounce de 200 ms: <Configure> dispara a cada movimento do mouse.
+    """
+    state = {"job": None, "w": 0}
+
+    def _go() -> None:
+        state["job"] = None
+        try:
+            w = bubble_max_w(scroll)
+        except tk.TclError:
+            return
+        if w == state["w"]:
+            return
+        state["w"] = w
+        rewrap_bubbles(scroll, w)
+
+    def _on(_e=None) -> None:
+        if state["job"] is not None:
+            try:
+                win.after_cancel(state["job"])
+            except tk.TclError:
+                pass
+        try:
+            state["job"] = win.after(200, _go)
+        except tk.TclError:
+            state["job"] = None
+
+    try:
+        win.bind("<Configure>", _on, add="+")
+    except tk.TclError:
+        pass
 
 
 def build_date_pill(parent: tk.Misc, label: str):
@@ -811,6 +917,7 @@ class ChatWindow:
         self.status_msg_label.pack(fill="x", padx=6)
         self.scroll = ctk.CTkScrollableFrame(self.win, fg_color=BUBBLE_LOG_BG)
         self.scroll.pack(fill="both", expand=True, padx=6)
+        bind_rewrap(self.win, self.scroll)  # texto proporcional à janela (v1.32)
         # -- barra de resposta (v1.30): aparece ao escolher "Responder" ----
         self._reply: dict | None = None
         self._reply_bar = ctk.CTkFrame(self.win, fg_color=BUBBLE_SEP_BG,
@@ -1378,6 +1485,7 @@ class GroupChatWindow:
         esc_closes(self.win, self._on_close)
         self.scroll = ctk.CTkScrollableFrame(self.win, fg_color=BUBBLE_LOG_BG)
         self.scroll.pack(fill="both", expand=True, padx=6, pady=4)
+        bind_rewrap(self.win, self.scroll)  # texto proporcional à janela (v1.32)
         self._sys(f"--- conversa em grupo: {dept} ---")
         ctk.CTkLabel(self.win, text="Texto da mensagem (@nome menciona):",
                      anchor="w").pack(fill="x", padx=6)

@@ -15,6 +15,7 @@ Compatível com Windows 7 SP1 / 8 / 8.1 / 10 / 11 (64 bits), com instaladores de
 - **Notificações toast + menções**: aviso nativo do Windows 10/11 (clique traz o app à frente; Win7 usa o balão da bandeja) e `@nome` na conversa em grupo destaca quem foi mencionado.
 - **Links clicáveis**: URLs `http(s)://` e `www.` nas mensagens abrem no navegador (v1.27).
 - **Responder mensagem**: botão direito no balão ou duplo-clique na mensagem → citação dentro do enviado (barra verde, autor + trecho), estilo WhatsApp (v1.30/v1.31).
+- **Texto proporcional à janela**: a quebra do balão segue 75% da largura da conversa (300–1200 px) e se reajusta ao redimensionar (v1.32).
 - **Mensagem para contato offline**: a mensagem fica na fila local e sai sozinha quando o colega aparece online (marca `(pendente)` vira tique) - o remetente precisa estar com o app aberto (v1.29).
 - **Log de erros**: falhas internas vão para `%APPDATA%\LANMessenger\logs\crash.log` com data, hora e traceback; aviso no rodapé e botão para abrir a pasta (v1.28).
 - **Instaladores versionados**: Inno Setup gera `Setup_LANMessenger_win10_11_vX.Y.exe` e `Setup_LANMessenger_win7_81_vX.Y.exe` com firewall e desinstalação completos.

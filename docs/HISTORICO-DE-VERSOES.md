@@ -1,6 +1,6 @@
 # Histórico de versões
 
-Versão atual: **v1.31**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.32**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
 
 ## v1.0 / v1.1 — base P2P estilo clássico
 - Descoberta UDP, chat TCP direto, arquivos com sha256, presença, histórico local SQLite, instaladores.
@@ -64,6 +64,11 @@ Versão atual: **v1.31**. Cada versão traz mudanças visíveis ao usuário; o b
 
 ## v1.23 — menus e inbox
 - Menu de botão direito na principal (Atualizar, Novo Grupo, Massa, Ocultar offline); recebidos em `inbox/<Remetente>/`.
+
+## v1.32 — texto proporcional à janela
+- Quebra do balão calculada pela largura real da janela (75%, entre 300 e 1200 px) em vez dos 380 px fixos: janela pequena acompanha a tela; maximizada usa quase toda a linha.
+- Ao redimensionar, os balões já abertos requebram sozinhos (debounce de 200 ms, sem laço: só reajusta quando a largura muda).
+- Citação da resposta acompanha a mesma proporção (60% da largura do balão).
 
 ## v1.31 — ajustes da resposta + correção de travamento
 - Duplo-clique na mensagem também abre a resposta (atalho ao lado do botão direito).

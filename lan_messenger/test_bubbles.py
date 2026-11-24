@@ -89,6 +89,44 @@ def main() -> None:
         app_gui.build_bubble(host, "in", long, "10:00")
         r.update()
         print("OK textos longos/URL/caminho")
+
+        # 5. largura proporcional à janela (v1.32)
+        class W:
+            def __init__(self, width, top=None):
+                self._w = width
+                self._top = top
+
+            def winfo_width(self):
+                return self._w
+
+            def winfo_toplevel(self):
+                return self._top or self
+
+        assert app_gui.bubble_max_w(W(1)) == 380          # sem medida: padrão
+        assert app_gui.bubble_max_w(W(0)) == 380
+        assert app_gui.bubble_max_w(W(600)) == 450        # 75% de 600
+        assert app_gui.bubble_max_w(W(1920)) == 1200      # teto
+        assert app_gui.bubble_max_w(W(300)) == 300        # piso (75% = 225)
+        # sem medida própria: cai na janela pai
+        assert app_gui.bubble_max_w(W(0, W(1000))) == 750
+        # rewrap: rótulos marcados acompanham a nova largura
+        n = app_gui.rewrap_bubbles(host, 600)
+        assert n >= 2, n
+        wraps = []
+
+        def _collect(w):
+            f = getattr(w, "_bubble_wrap", None)
+            if f:
+                wraps.append((w, f))
+            for c in w.winfo_children():
+                _collect(c)
+
+        _collect(host)
+        assert wraps, "nenhum rotulo marcado para rewrap"
+        for lbl, frac in wraps:
+            assert int(str(lbl.cget("wraplength"))) == max(120, int(600 * frac))
+        assert app_gui.rewrap_bubbles(host, 600) == n     # mesmo valor: estável
+        print(f"OK largura proporcional ({n} rotulos reajustados)")
         print("TESTE BUBBLES: PASSOU")
     finally:
         r.destroy()
