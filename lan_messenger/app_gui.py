@@ -141,6 +141,10 @@ envia arquivos, com barra de progresso e Cancelar. Ctrl+V com print na
 "(pendente)") e sai sozinha quando o contato aparecer online — o remetente
 precisa estar com o app aberto nessa hora. Sem fila no servidor: ninguém
 recebe com tudo desligado.
+- Responder a uma mensagem específica: botão direito no balão >
+"Responder"; a citação (autor + trecho) aparece dentro do balão enviado
+com barra verde, estilo WhatsApp. A prévia fica acima do campo de texto
+(✕ cancela).
 - Mensagem em massa: marca grupos/usuários com caixas de seleção,
 Todos/Nenhum.
 - Conversa em grupo: janela por departamento, recebe os broadcasts.
@@ -226,6 +230,8 @@ conversa em grupo e link do projeto no Ajuda/Sobre.
 diálogos de falha substituídos por aviso no rodapé.
 - v1.29: mensagem para contato offline fica na fila local e é entregue
 sozinha quando ele aparece online (tique troca de "(pendente)" p/ ✓).
+- v1.30: responder mensagem específica — citação no balão com barra
+verde (autor + trecho), prévia acima do campo de texto.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -477,6 +483,12 @@ def center_soon(win: tk.Misc) -> None:
 
 # link dentro do balão (claro, escuro) — azul clicável
 BUBBLE_LINK_FG = ("#1A5FB4", "#8AB4F8")
+# citação de resposta (v1.30): barra verde WhatsApp + fundo suave
+REPLY_QUOTE_BG = ("#EDEFF2", "#2A343A")      # dentro do balão recebido
+REPLY_QUOTE_BG_OUT = ("#C8EFC2", "#01483C")  # dentro do balão enviado
+REPLY_QUOTE_BAR = ("#00A884", "#00A884")
+REPLY_QUOTE_NAME = ("#008069", "#00A884")
+REPLY_QUOTE_FG = ("#667085", "#AEBAC1")
 
 URL_RE = re.compile(r"(https?://[^\s]+|www\.[^\s]+)", re.IGNORECASE)
 
@@ -525,13 +537,16 @@ def split_url_segments(text: str) -> list[tuple[str, str]]:
 
 
 def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
-                 name: str = "", max_w: int = 380, mention: bool = False):
+                 name: str = "", max_w: int = 380, mention: bool = False,
+                 reply: dict | None = None):
     """Balão arredondado (in=esquerda branca, out=direita verde).
 
     clock: "08:12" (recebida) ou "08:12 ✓" (enviada: entregue via ACK;
     nunca azul — o sistema não informa leitura).
     mention: mensagem de grupo que me menciona (@nome) — fundo amarelado
     e nome em laranja com "— mencionou você".
+    reply: cita mensagem específica (v1.30) — bloco com barra verde,
+    nome do autor e trecho, no topo do balão (estilo WhatsApp).
     """
     side = "e" if direction == "out" else "w"
     bg = MENTION_BG if (mention and direction == "in") else (
@@ -546,6 +561,24 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
                      text_color=MENTION_NAME_FG if mention else BUBBLE_NAME_FG,
                      font=ctk.CTkFont(size=11, weight="bold"),
                      anchor="w").pack(fill="x", padx=12, pady=(8, 0))
+    if reply:
+        # citação no topo do balão (v1.30): barra verde + autor + trecho
+        qbg = REPLY_QUOTE_BG_OUT if direction == "out" else REPLY_QUOTE_BG
+        quote = ctk.CTkFrame(bubble, fg_color=qbg, corner_radius=6)
+        quote.pack(fill="x", padx=8, pady=(6, 0))
+        ctk.CTkFrame(quote, fg_color=REPLY_QUOTE_BAR, width=4,
+                     corner_radius=2).pack(side="left", fill="y",
+                                           padx=(5, 0), pady=5)
+        qin = ctk.CTkFrame(quote, fg_color="transparent")
+        qin.pack(fill="x", padx=(3, 8), pady=5)
+        ctk.CTkLabel(qin, text=str(reply.get("name", ""))[:80],
+                     text_color=REPLY_QUOTE_NAME,
+                     font=ctk.CTkFont(size=11, weight="bold"),
+                     anchor="w").pack(fill="x")
+        ctk.CTkLabel(qin, text=str(reply.get("text", ""))[:300],
+                     text_color=REPLY_QUOTE_FG,
+                     font=ctk.CTkFont(size=12), anchor="w", justify="left",
+                     wraplength=max_w - 30).pack(fill="x")
     segs = split_url_segments(text)
     if len(segs) == 1 and segs[0][0] == "text":
         ctk.CTkLabel(bubble, text=text, text_color=BUBBLE_FG,
@@ -748,6 +781,24 @@ class ChatWindow:
         self.status_msg_label.pack(fill="x", padx=6)
         self.scroll = ctk.CTkScrollableFrame(self.win, fg_color=BUBBLE_LOG_BG)
         self.scroll.pack(fill="both", expand=True, padx=6)
+        # -- barra de resposta (v1.30): aparece ao escolher "Responder" ----
+        self._reply: dict | None = None
+        self._reply_bar = ctk.CTkFrame(self.win, fg_color=BUBBLE_SEP_BG,
+                                       corner_radius=8)
+        self._reply_lbl = ctk.CTkLabel(self._reply_bar, text="",
+                                       anchor="w", font=ctk.CTkFont(size=11))
+        self._reply_lbl.pack(side="left", fill="x", expand=True,
+                             padx=(8, 4), pady=(4, 0))
+        self._reply_excerpt = ctk.CTkLabel(self._reply_bar, text="",
+                                           anchor="w", justify="left",
+                                           text_color=BUBBLE_SEP_FG,
+                                           font=ctk.CTkFont(size=12))
+        self._reply_excerpt.pack(side="left", fill="x", expand=True,
+                                 padx=(8, 4), pady=(0, 4))
+        ctk.CTkButton(self._reply_bar, text="✕", width=28, height=24,
+                      fg_color="transparent",
+                      command=self._clear_reply).pack(side="right",
+                                                      padx=4, pady=4)
         ctk.CTkLabel(self.win, text="Texto da mensagem:", anchor="w").pack(
             fill="x", padx=6)
         self.entry = ctk.CTkTextbox(self.win, height=80)
@@ -776,8 +827,10 @@ class ChatWindow:
         self._pending_ts: dict[str, str] = {}
         if app.settings.show_recent:
             pend = app.store.pending_ids(ip)
+            reps = app.store.replies_with(ip)
             for mid, direction, text, ts in app.store.messages_with_ids(ip):
-                self._dated(direction, text, ts, mid=mid, pending=mid in pend)
+                self._dated(direction, text, ts, mid=mid, pending=mid in pend,
+                            reply=reps.get(mid))
             scroll_end(self.scroll)
         self._sys(f"--- conversa com {roster.label_of(info)}@{ip} ---")
         self.apply_font()
@@ -841,7 +894,8 @@ class ChatWindow:
                      font=ctk.CTkFont(size=11)).pack(pady=2)
 
     def _dated(self, direction: str, text: str, ts: str, name: str = "",
-               mid: str = "", pending: bool = False) -> None:
+               mid: str = "", pending: bool = False,
+               reply: dict | None = None) -> None:
         show_pill = ts and self.app.settings.show_datetime
         label = chatview.date_label(ts) if show_pill else ""
         if label and label != self._last_date:
@@ -849,11 +903,75 @@ class ChatWindow:
             self._last_date = label
         row = build_bubble(self.scroll, direction, text,
                            bubble_clock(direction, ts, pending=pending),
-                           name=name)
+                           name=name, reply=reply)
         if pending and mid:
             self._pending[mid] = row
             self._pending_ts[mid] = ts
+        if mid:
+            try:
+                row._mid = mid  # v1.30: botão direito cita este balão
+            except Exception:
+                pass
+            self._bind_bubble_menu(row, direction, text, name)
         scroll_end(self.scroll)
+
+    def _bind_bubble_menu(self, row, direction: str, text: str,
+                          name: str) -> None:
+        """Botão direito em qualquer parte do balão → "Responder" (v1.30)."""
+        stack = [row]
+        while stack:
+            w = stack.pop()
+            try:
+                w.bind("<Button-3>",
+                       lambda e, r=row, d=direction, t=text, n=name:
+                       self._bubble_menu(e, r, d, t, n), add="+")
+            except tk.TclError:
+                continue
+            try:
+                stack.extend(w.winfo_children())
+            except tk.TclError:
+                pass
+
+    def _bubble_menu(self, event, row, direction: str, text: str,
+                     name: str) -> None:
+        mid = getattr(row, "_mid", "")
+        if not mid:
+            return
+        if direction == "in":
+            who = name or self.app.peer_label(self.ip)
+        else:
+            who = name or self.app.profile.effective_display()
+        m = tk.Menu(self.win, tearoff=0)
+        m.add_command(label="Responder",
+                      command=lambda: self._start_reply(mid, who, text))
+        try:
+            m.tk_popup(event.x_root, event.y_root)
+        finally:
+            try:
+                m.grab_release()
+            except tk.TclError:
+                pass
+
+    def _start_reply(self, mid: str, who: str, text: str) -> None:
+        """Mostra a prévia da resposta acima do campo de texto."""
+        self._reply = {"id": mid, "name": str(who)[:80],
+                       "text": str(text)[:300]}
+        try:
+            self._reply_lbl.configure(text=f"Respondendo a {who}")
+            self._reply_excerpt.configure(text=str(text)[:300])
+            self._reply_bar.pack(fill="x", padx=6, pady=(2, 0),
+                                 before=self.entry)
+            self.entry.focus_set()
+        except (tk.TclError, AttributeError):
+            pass
+
+    def _clear_reply(self) -> None:
+        """Cancela a resposta pendente (✕ na barra)."""
+        self._reply = None
+        try:
+            self._reply_bar.pack_forget()
+        except tk.TclError:
+            pass
 
     def mark_delivered(self, mid: str) -> None:
         """Fila entregou: troca "(pendente)" pelo tique (v1.29)."""
@@ -884,11 +1002,12 @@ class ChatWindow:
                         lambda p=path: self._open_containing(p), px)
         scroll_end(self.scroll)
 
-    def incoming(self, text: str, info: dict) -> None:
+    def incoming(self, text: str, info: dict, mid: str = "",
+                 reply: dict | None = None) -> None:
         self._refresh_title(info)
         s = self.app.settings
         ts = time.strftime("%d/%m/%Y - %H:%M:%S")  # sempre: identifica a hora
-        self._dated("in", text, ts)
+        self._dated("in", text, ts, mid=mid, reply=reply)
         self.update_status_line(info)
         self.win.after(0, self._announce)
         if s.keep_focus:
@@ -955,12 +1074,13 @@ class ChatWindow:
         if not text:
             return
         info = self.app.selected_info(self.ip)
+        reply = self._reply
         self.entry.delete("1.0", "end")
         self.app.touch()
-        # offline: não bloqueia mais o envio (v1.29) — entra na fila e sai
+        # offline: não bloqueia mais o envio (v1.29) - entra na fila e sai
         # sozinho quando o contato aparecer online
         if str(info.get("status", "online")) == "offline":
-            self.app.queue_outgoing(self.ip, text)
+            self.app.queue_outgoing(self.ip, text, reply=reply)
             return
         if self.app.disc.is_stale(self.ip):
             ok, _msg = networks.tcp_ping(self.ip, config.TCP_CHAT_PORT,
@@ -968,21 +1088,26 @@ class ChatWindow:
             if not ok:
                 self.app.disc.mark_unreachable(self.ip)
                 self.app.refresh()
-                self.app.queue_outgoing(self.ip, text)
+                self.app.queue_outgoing(self.ip, text, reply=reply)
                 return
         try:
             mid = chat.send_message(self.ip, text,
                                     from_name=self.app.profile.effective_display(),
-                                    from_user=config.my_user(), key=self.app.key)
+                                    from_user=config.my_user(), key=self.app.key,
+                                    reply=reply)
         except Exception:  # noqa: BLE001 - falhou: fica na fila, sem erro modal
             self.app.disc.mark_unreachable(self.ip)
             self.app.refresh()
-            self.app.queue_outgoing(self.ip, text)
+            self.app.queue_outgoing(self.ip, text, reply=reply)
             return
         self.app.store.add_message(mid, self.ip, "out", text)
+        if reply:
+            self.app.store.set_reply(mid, reply.get("id", ""),
+                                     reply.get("name", ""), reply.get("text", ""))
         logger.log_message(self.app.settings, self.app.peer_label(self.ip), "out", text)
         ts = time.strftime("%d/%m/%Y - %H:%M:%S")  # sempre: identifica a hora
-        self._dated("out", text, ts)
+        self._dated("out", text, ts, mid=mid, reply=reply)
+        self._clear_reply()
         self.app.flush_outbox_soon()
 
     def invite_dialog(self) -> None:
@@ -1402,12 +1527,17 @@ class App:
         self.root.report_callback_exception = report
 
     # -- fila de saída: mensagem para contato offline (v1.29) ------------
-    def queue_outgoing(self, ip: str, text: str) -> None:
+    def queue_outgoing(self, ip: str, text: str,
+                       reply: dict | None = None) -> None:
         """Guarda a mensagem no banco; sai sozinha quando o contato voltar."""
         mid = uuid.uuid4().hex
         try:
             self.store.add_message(mid, ip, "out", text)
             self.store.queue_message(mid, ip, text)
+            if reply:
+                self.store.set_reply(mid, str(reply.get("id", "")),
+                                     str(reply.get("name", ""))[:80],
+                                     str(reply.get("text", ""))[:300])
         except Exception as e:
             log_crash("outbox_queue", e)
             return
@@ -1415,7 +1545,8 @@ class App:
         ts = time.strftime("%d/%m/%Y - %H:%M:%S")
         win = self.chat_windows.get(ip)
         if win is not None:
-            win._dated("out", text, ts, mid=mid, pending=True)
+            win._dated("out", text, ts, mid=mid, pending=True, reply=reply)
+            win._clear_reply()
         try:
             self.statusbar.configure(
                 text=f"Mensagem guardada para {self.peer_label(ip)} — "
@@ -1444,9 +1575,11 @@ class App:
 
     def _send_queued(self, ip: str, text: str, mid: str) -> None:
         """Envio da fila: mesmo id do banco (balão vira tique ao entregar)."""
+        reply = self.store.get_reply(mid)
         chat.send_message(ip, text,
                           from_name=self.profile.effective_display(),
-                          from_user=config.my_user(), key=self.key, msg_id=mid)
+                          from_user=config.my_user(), key=self.key, msg_id=mid,
+                          reply=reply)
 
     def _flush_outbox(self) -> None:
         """Dispara o flush em thread (socket nunca na thread da UI)."""
@@ -2423,7 +2556,14 @@ class App:
 
     def _on_msg(self, msg: dict, ip: str) -> None:
         text = str(msg.get("text", ""))
-        self.store.add_message(str(msg.get("id")), ip, "in", text)
+        mid = str(msg.get("id", ""))
+        raw = msg.get("reply")
+        reply = raw if isinstance(raw, dict) and raw.get("id") else None
+        self.store.add_message(mid, ip, "in", text)
+        if reply:  # v1.30: guarda a citação p/ reabrir a conversa
+            self.store.set_reply(mid, str(reply.get("id", "")),
+                                 str(reply.get("name", ""))[:80],
+                                 str(reply.get("text", ""))[:300])
         logger.log_message(self.settings, self.peer_label(ip), "in", text)
         # conversa em grupo aberta com este remetente? vai p/ lá (sem 1-1)
         gw = self._group_window_for(ip)
@@ -2455,12 +2595,13 @@ class App:
             # minimiza na barra: sem popup; avisa na statusbar + som
             self.statusbar.configure(text=f"Nova mensagem de {self.peer_label(ip)}")
             if w and w.win.winfo_exists():
-                w.incoming(text, self.selected_info(ip))
+                w.incoming(text, self.selected_info(ip), mid=mid, reply=reply)
         elif w and w.win.winfo_exists():
-            w.incoming(text, self.selected_info(ip))
+            w.incoming(text, self.selected_info(ip), mid=mid, reply=reply)
         else:
             self.open_chat(ip)
-            self.chat_windows[ip].incoming(text, self.selected_info(ip))
+            self.chat_windows[ip].incoming(text, self.selected_info(ip),
+                                           mid=mid, reply=reply)
         self.touch()
         if self._in_tray and self.tray is not None:
             self.tray.set_unread(True)

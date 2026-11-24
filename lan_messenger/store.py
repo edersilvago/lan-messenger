@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS files (
 CREATE TABLE IF NOT EXISTS outbox (
   id TEXT PRIMARY KEY, peer TEXT, text TEXT, ts REAL
 );
+CREATE TABLE IF NOT EXISTS replies (
+  msg_id TEXT PRIMARY KEY, reply_id TEXT, reply_name TEXT, reply_text TEXT
+);
 """
 
 
@@ -89,6 +92,32 @@ class Store:
         """Remove da fila (entregue ou descartada)."""
         self._conn.execute("DELETE FROM outbox WHERE id=?", (msg_id,))
         self._conn.commit()
+
+    # -- respostas (v1.30): citação de mensagem específica ----------------
+    def set_reply(self, msg_id: str, reply_id: str, name: str, text: str) -> None:
+        """Liga a mensagem ao que ela responde (para exibir a citação)."""
+        self._conn.execute(
+            "INSERT OR REPLACE INTO replies VALUES (?,?,?,?)",
+            (msg_id, reply_id, name, text))
+        self._conn.commit()
+
+    def get_reply(self, msg_id: str) -> dict | None:
+        cur = self._conn.execute(
+            "SELECT reply_id, reply_name, reply_text FROM replies WHERE msg_id=?",
+            (msg_id,))
+        row = cur.fetchone()
+        if row is None:
+            return None
+        return {"id": row[0], "name": row[1], "text": row[2]}
+
+    def replies_with(self, peer: str) -> dict[str, dict]:
+        """Citações das mensagens trocadas com um peer. {msg_id: reply}."""
+        cur = self._conn.execute(
+            "SELECT r.msg_id, r.reply_id, r.reply_name, r.reply_text"
+            " FROM replies r JOIN messages m ON m.id = r.msg_id"
+            " WHERE m.peer=?", (peer,))
+        return {r[0]: {"id": r[1], "name": r[2], "text": r[3]}
+                for r in cur.fetchall()}
 
     def list_peers(self) -> list[str]:
         """Peers com histórico (ordenados)."""

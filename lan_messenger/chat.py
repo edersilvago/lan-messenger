@@ -85,13 +85,14 @@ class ChatServer:
 def send_message(ip: str, text: str, from_name: str = "", from_user: str = "",
                  tcp_port: int | None = None,
                  timeout: float | None = None, bcast: bool = False,
-                 key: bytes | None = None, msg_id: str = "") -> str:
+                 key: bytes | None = None, msg_id: str = "",
+                 reply: dict | None = None) -> str:
     """Envia texto p/ um peer. Retorna o id. Levanta OSError/TimeoutError se falhar."""
     port = tcp_port or config.TCP_CHAT_PORT
     timeout = timeout or config.ACK_TIMEOUT
     msg = protocol.make_msg(from_name or config.my_hostname(),
                             from_user or config.my_user(), text, to=ip, bcast=bcast,
-                            msg_id=msg_id)
+                            msg_id=msg_id, reply=reply)
     with socket.create_connection((ip, port), timeout=timeout) as sock:
         crypto.send_obj(sock, msg, key, timeout=timeout)
         ack = crypto.recv_obj(sock, key, timeout=timeout)

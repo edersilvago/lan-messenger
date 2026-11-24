@@ -240,6 +240,17 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   funciona como anotações (loopback real, vai p/ o histórico).
 - Chamadas de worker p/ UI via fila thread-safe (sem travar).
 
+## Responder mensagem específica (v1.30)
+
+- Botão direito em qualquer balão → "Responder" (1-1).
+- Prévia acima do campo de texto: "Respondendo a <nome>" + trecho; ✕
+  cancela. Enter envia normalmente.
+- O balão enviado mostra a citação no topo: barra verde, nome do autor
+  e trecho (estilo WhatsApp). Quem recebe vê a mesma citação; ao reabrir
+  a conversa, o histórico mantém.
+- Campo novo `reply` na mensagem: versões antigas ignoram (retro-
+  compatível). Grupo ainda não usa.
+
 ## Fila para contato offline (v1.29)
 
 - Enviar para quem está offline não abre mais aviso: a mensagem entra na
@@ -349,6 +360,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   no rodapé em vez de diálogo e botão para abrir a pasta do log.
 - v1.29: mensagem para contato offline fica na fila local e é entregue
   sozinha quando ele aparece online (marca "(pendente)" vira tique).
+- v1.30: responder mensagem específica — citação no balão (barra verde,
+  autor + trecho) e prévia acima do campo de texto.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

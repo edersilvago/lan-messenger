@@ -45,6 +45,7 @@ LAN Messenger é um sistema **P2P puro para Windows**: nenhuma mensagem passa po
 
 - **Framing length-prefixed**: 4 bytes big-endian com o tamanho + payload JSON (UTF-8). Limite de 50 MB por frame (proteção contra frame malformado).
 - **ACK por mensagem**: o receptor confirma entrega — origem do tique cinza único nos balões. O sistema **não** informa leitura (não há tique azul).
+- **Resposta a mensagem específica (v1.30)**: campo opcional `reply` `{id, name, text}` na mensagem; versões antigas ignoram (retro-compatível).
 - **Fila de saída (v1.29)**: destino offline → mensagem vai para a tabela `outbox` do SQLite com o mesmo `id` (balão `(pendente)`); um worker tenta a cada 10s e ao contato voltar, troca o balão para tique ao receber o ACK. Só entrega com o remetente aberto.
 
 ## Arquivos (`files.py`)

@@ -70,10 +70,16 @@ def make_hello(name: str, user: str) -> dict:
 
 
 def make_msg(from_name: str, from_user: str, text: str, to: str = "",
-             bcast: bool = False, msg_id: str = "") -> dict:
-    return {"type": "msg", "id": msg_id or uuid.uuid4().hex, "from_name": from_name,
-            "from_user": from_user, "to": to, "text": text,
-            "bcast": bcast, "ts": time.time()}
+             bcast: bool = False, msg_id: str = "",
+             reply: dict | None = None) -> dict:
+    d = {"type": "msg", "id": msg_id or uuid.uuid4().hex, "from_name": from_name,
+         "from_user": from_user, "to": to, "text": text,
+         "bcast": bcast, "ts": time.time()}
+    if reply:  # v1.30: cita mensagem específica (versões antigas ignoram)
+        d["reply"] = {"id": str(reply.get("id", "")),
+                      "name": str(reply.get("name", ""))[:80],
+                      "text": str(reply.get("text", ""))[:300]}
+    return d
 
 
 def make_ack(msg_id: str) -> dict:
