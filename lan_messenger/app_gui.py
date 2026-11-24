@@ -21,8 +21,8 @@ from pathlib import Path
 import customtkinter as ctk
 
 from . import (autostart, chat, config, crypto, discovery, files,
-               history_view, logger, mass, networks, profile, remote, roster,
-               sfx, single_instance, sysinfo, toaster)
+                history_view, logger, mass, networks, profile, remote, roster,
+                sfx, single_instance, sysinfo, toaster, updates)
 from . import chatview
 from .store import Store
 
@@ -158,6 +158,9 @@ prévia fica acima do campo de texto (✕ cancela).
 entre 8 e 32 px. A mudança altera imediatamente mensagens, links,
 citações, nomes, horários, datas, avisos e anexos nas conversas 1-1 e
 em grupo.
+- ENTER não espera rede: a mensagem é exibida e enfileirada na hora; o
+envio ocorre em segundo plano, com status no rodapé. Clique em área
+livre da conversa foca o campo de texto.
 - Mensagem em massa: marca grupos/usuários com caixas de seleção,
 Todos/Nenhum.
 - Conversa em grupo: janela por departamento, recebe os broadcasts.
@@ -259,6 +262,8 @@ pendentes dentro de outros callbacks.
 inclusive balões já abertos; layout validado de 620 px até 4K.
 - v1.36: fonte deixa de ter três opções fixas; campo numérico aceita
 qualquer tamanho inteiro entre 8 e 32 px, com prévia instantânea.
+- v1.37: envio não bloqueia mais a UI (TCP/ACK no worker); clique na
+conversa foca a digitação; aviso silencioso de nova versão.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -1076,6 +1081,7 @@ class ChatWindow:
         self.focused = False
         self.win.bind("<FocusIn>", lambda e: setattr(self, "focused", True))
         self.win.bind("<FocusOut>", lambda e: setattr(self, "focused", False))
+        self.win.bind("<Button-1>", self._focus_from_click, add="+")
         bot = ctk.CTkFrame(self.win, fg_color="transparent")
         bot.pack(fill="x", padx=6, pady=6)
         ctk.CTkButton(bot, text="Fechar", width=100,
@@ -1310,6 +1316,20 @@ class ChatWindow:
         except Exception as e:
             log_crash("chat_focus", e)
 
+    def _focus_from_click(self, event) -> None:
+        """Clique em área não interativa da conversa leva foco à digitação."""
+        widget = getattr(event, "widget", None)
+        blocked = (ctk.CTkButton, ctk.CTkEntry, ctk.CTkTextbox,
+                   ctk.CTkScrollbar, tk.Button, tk.Entry, tk.Text)
+        while widget is not None and widget is not self.win:
+            if isinstance(widget, blocked):
+                return
+            widget = getattr(widget, "master", None)
+        try:
+            self.win.after(0, self._focus_entry)
+        except tk.TclError:
+            pass
+
     def update_status_line(self, info: dict) -> None:
         """Curta em cima ('está ausente'); mensagem em negrito embaixo."""
         name = roster.label_of(info)
@@ -1365,38 +1385,10 @@ class ChatWindow:
         reply = self._reply
         self.entry.delete("1.0", "end")
         self.app.touch()
-        # offline: não bloqueia mais o envio (v1.29) - entra na fila e sai
-        # sozinho quando o contato aparecer online
-        if str(info.get("status", "online")) == "offline":
-            self.app.queue_outgoing(self.ip, text, reply=reply)
-            return
-        if self.app.disc.is_stale(self.ip):
-            ok, _msg = networks.tcp_ping(self.ip, config.TCP_CHAT_PORT,
-                                          timeout=config.TCP_CONFIRM_TIMEOUT)
-            if not ok:
-                self.app.disc.mark_unreachable(self.ip)
-                self.app.refresh()
-                self.app.queue_outgoing(self.ip, text, reply=reply)
-                return
-        try:
-            mid = chat.send_message(self.ip, text,
-                                    from_name=self.app.profile.effective_display(),
-                                    from_user=config.my_user(), key=self.app.key,
-                                    reply=reply)
-        except Exception:  # noqa: BLE001 - falhou: fica na fila, sem erro modal
-            self.app.disc.mark_unreachable(self.ip)
-            self.app.refresh()
-            self.app.queue_outgoing(self.ip, text, reply=reply)
-            return
-        self.app.store.add_message(mid, self.ip, "out", text)
-        if reply:
-            self.app.store.set_reply(mid, reply.get("id", ""),
-                                     reply.get("name", ""), reply.get("text", ""))
-        logger.log_message(self.app.settings, self.app.peer_label(self.ip), "out", text)
-        ts = time.strftime("%d/%m/%Y - %H:%M:%S")  # sempre: identifica a hora
-        self._dated("out", text, ts, mid=mid, reply=reply)
-        self._clear_reply()
-        self.app.flush_outbox_soon()
+        offline = str(info.get("status", "online")) == "offline"
+        # v1.37: salva/exibe na hora; socket + ACK ficam no worker da fila.
+        # ENTER nunca espera ping, conexão TCP ou timeout na thread da UI.
+        self.app.queue_outgoing(self.ip, text, reply=reply, offline=offline)
 
     def invite_dialog(self) -> None:
         """Convidar: envia convite a outro usuário e abre a conversa com ele."""
@@ -1771,6 +1763,7 @@ class App:
         self._really_quit = False
         self._flushing = False        # flush da fila em andamento
         self._flush_scheduled = False  # flush já agendado no after
+        self._flush_again = False     # nova mensagem chegou durante o flush
         self.chat_windows: dict[str, ChatWindow] = {}
         self.group_windows: dict[str, GroupChatWindow] = {}
         self._collapsed_groups: set[str] = set()
@@ -1807,6 +1800,8 @@ class App:
         root.bind("<Control-Up>", self._on_tree_key, add="+")
         root.bind("<Control-Down>", self._on_tree_key, add="+")
         self._install_crash_reporter()
+        threading.Thread(target=self._check_update_worker, daemon=True,
+                         name="update-check").start()
 
     def _install_crash_reporter(self) -> None:
         """Erros em callbacks Tk (after, bindings) vão para logs/crash.log.
@@ -1822,10 +1817,32 @@ class App:
                 pass
         self.root.report_callback_exception = report
 
+    def _check_update_worker(self) -> None:
+        """Consulta GitHub fora da UI; sem internet não mostra erro."""
+        result = updates.check_latest(config.APP_VERSION)
+        if result is not None and not self._really_quit:
+            self._ui_call(self._offer_update, *result)
+
+    def _offer_update(self, version: str, url: str) -> None:
+        """Avisa e leva o usuário à página oficial de Releases."""
+        try:
+            self.statusbar.configure(
+                text=f"Nova versão {version} disponível para download.")
+            open_now = messagebox.askyesno(
+                "Nova versão disponível",
+                f"A versão {version} do LAN Messenger está disponível.\n\n"
+                "Deseja abrir a página de Releases para baixar?",
+                parent=self.root)
+        except tk.TclError:
+            return
+        if open_now:
+            open_url(url)
+
     # -- fila de saída: mensagem para contato offline (v1.29) ------------
     def queue_outgoing(self, ip: str, text: str,
-                       reply: dict | None = None) -> None:
-        """Guarda a mensagem no banco; sai sozinha quando o contato voltar."""
+                       reply: dict | None = None,
+                       offline: bool = True) -> None:
+        """Exibe e guarda imediatamente; entrega TCP ocorre no worker."""
         mid = uuid.uuid4().hex
         try:
             self.store.add_message(mid, ip, "out", text)
@@ -1844,9 +1861,12 @@ class App:
             win._dated("out", text, ts, mid=mid, pending=True, reply=reply)
             win._clear_reply()
         try:
-            self.statusbar.configure(
-                text=f"Mensagem guardada para {self.peer_label(ip)} — "
-                     "sai sozinha quando ele ficar online.")
+            if offline:
+                status = (f"Mensagem guardada para {self.peer_label(ip)} — "
+                          "sai sozinha quando ele ficar online.")
+            else:
+                status = f"Enviando mensagem para {self.peer_label(ip)}..."
+            self.statusbar.configure(text=status)
         except tk.TclError:
             pass
         self.flush_outbox_soon()
@@ -1857,7 +1877,7 @@ class App:
             return
         self._flush_scheduled = True
         try:
-            self.root.after(800, self._flush_outbox)
+            self.root.after(20, self._flush_outbox)
         except (tk.TclError, RuntimeError):
             self._flush_scheduled = False
 
@@ -1881,6 +1901,8 @@ class App:
         """Dispara o flush em thread (socket nunca na thread da UI)."""
         self._flush_scheduled = False
         if self._flushing or self._really_quit:
+            if self._flushing:
+                self._flush_again = True
             return
         self._flushing = True
 
@@ -1892,6 +1914,9 @@ class App:
                 flush_outbox(self.store, self._peer_online, self._send_queued, done)
             finally:
                 self._flushing = False
+                if self._flush_again:
+                    self._flush_again = False
+                    self._ui_call(self.flush_outbox_soon)
 
         try:
             threading.Thread(target=run, daemon=True, name="outbox").start()
@@ -1906,7 +1931,7 @@ class App:
             win.mark_delivered(mid)
         try:
             self.statusbar.configure(
-                text=f"Mensagem da fila entregue a {self.peer_label(ip)}.")
+                text=f"Mensagem entregue a {self.peer_label(ip)}.")
         except tk.TclError:
             pass
 

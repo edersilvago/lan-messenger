@@ -375,6 +375,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   datas, avisos e anexos já abertos; validado de 620 px até 4K.
 - v1.36: Tamanho da Fonte vira campo numérico de 8–32 px, com prévia
   instantânea e migração das opções antigas (Normal/Grande/Extra grande).
+- v1.37: ENTER não bloqueia a UI; envio e ACK ocorrem em segundo plano;
+  clique na conversa foca a digitação; aviso silencioso de nova versão.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

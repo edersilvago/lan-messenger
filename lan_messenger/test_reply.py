@@ -122,10 +122,9 @@ def main() -> None:
     assert stub._reply is None and stub._reply_bar.packed is False
     print("OK prévia da resposta (mostrar/cancelar)")
 
-    # 5. envio carrega a citação para a rede e para o banco
-    sent: dict = {}
+    # 5. ENTER enfileira com citação; não chama socket na thread da UI
+    queued: dict = {}
     real_send = chat.send_message
-    real_log = app_gui.logger.log_message
 
     class Entry:
         def get(self, *a):
@@ -154,40 +153,51 @@ def main() -> None:
     app.selected_info = lambda ip: {"status": "online"}
     app.touch = lambda: None
     app.peer_label = lambda ip: "Ana"
-    app.flush_outbox_soon = lambda: None
+    app.queue_outgoing = lambda ip, text, **kw: queued.update(
+        {"ip": ip, "text": text, **kw})
 
     cw = app_gui.ChatWindow.__new__(app_gui.ChatWindow)
     cw.app = app
     cw.ip = "10.0.0.2"
     cw.entry = Entry()
     cw._reply = {"id": "m1", "name": "Ana", "text": "mensagem original"}
-    dated: list = []
-    cw._dated = lambda *a, **k: dated.append((a, k))
-    cw._clear_reply = lambda: setattr(cw, "_reply", None)
+    def forbidden_send(*_a, **_k):
+        raise AssertionError("socket não pode rodar na thread do ENTER")
 
-    def fake_send(ip, text, **kw):
-        sent.update(kw)
-        return "mid-30"
-
-    chat.send_message = fake_send
-    app_gui.logger.log_message = lambda *a, **k: None
+    chat.send_message = forbidden_send
     try:
         app_gui.ChatWindow.send(cw)
     finally:
         chat.send_message = real_send
-        app_gui.logger.log_message = real_log
-    assert sent.get("reply") == {"id": "m1", "name": "Ana",
-                                 "text": "mensagem original"}, sent
-    assert s.get_reply("mid-30") is not None
-    assert dated and dated[0][1].get("reply") is not None
-    assert cw._reply is None  # prévia limpa após enviar
-    print("OK envio com citação (rede + banco + prévia limpa)")
+    assert queued["ip"] == "10.0.0.2"
+    assert queued["text"] == "minha resposta"
+    assert queued["reply"] == {"id": "m1", "name": "Ana",
+                               "text": "mensagem original"}, queued
+    assert queued["offline"] is False
+    print("OK ENTER instantaneo (citação vai para fila; sem socket na UI)")
 
     # 6. funções novas presentes
     for name in ("_bubble_menu", "_start_reply", "_clear_reply",
-                 "_bind_bubble_menu", "_bubble_dblclick"):
+                 "_bind_bubble_menu", "_bubble_dblclick",
+                 "_focus_from_click"):
         assert callable(getattr(app_gui.ChatWindow, name)), name
     print("OK metodos da resposta")
+
+    # clique no fundo da conversa agenda foco no campo de texto
+    focused = []
+
+    class FocusWin:
+        def after(self, delay, callback):
+            assert delay == 0
+            callback()
+
+    focus_stub = type("FocusStub", (), {})()
+    focus_stub.win = FocusWin()
+    focus_stub._focus_entry = lambda: focused.append(True)
+    event = type("Event", (), {"widget": focus_stub.win})()
+    app_gui.ChatWindow._focus_from_click(focus_stub, event)
+    assert focused == [True], focused
+    print("OK clique na conversa leva foco ao texto")
 
     # 7. duplo-clique dispara a resposta (v1.31)
     stub2 = type("S2", (), {})()
