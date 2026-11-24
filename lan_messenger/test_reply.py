@@ -179,9 +179,61 @@ def main() -> None:
 
     # 6. funções novas presentes
     for name in ("_bubble_menu", "_start_reply", "_clear_reply",
-                 "_bind_bubble_menu"):
+                 "_bind_bubble_menu", "_bubble_dblclick"):
         assert callable(getattr(app_gui.ChatWindow, name)), name
     print("OK metodos da resposta")
+
+    # 7. duplo-clique dispara a resposta (v1.31)
+    stub2 = type("S2", (), {})()
+    stub2._reply = None
+    got = {}
+
+    def fake_start(mid, who, text):
+        got.update({"id": mid, "name": who, "text": text})
+
+    stub2._start_reply = fake_start
+    stub2.app = type("A", (), {"peer_label": lambda s, ip: "Ana"})()
+    stub2.ip = "10.0.0.2"
+    row = type("R", (), {"_mid": "m9"})()
+    app_gui.ChatWindow._bubble_dblclick(stub2, None, row, "in",
+                                        "e aí?", "")
+    assert got == {"id": "m9", "name": "Ana", "text": "e aí?"}, got
+    # sem id (balão de sistema): não faz nada
+    got.clear()
+    app_gui.ChatWindow._bubble_dblclick(stub2, None, type("R2", (), {})(),
+                                        "in", "x", "")
+    assert got == {}, got
+    print("OK duplo-clique responde")
+
+    # 8. centralizar não recursa (crash v1.30: update_idletasks x after_idle)
+    class FakeWin:
+        calls = 0
+
+        def update_idletasks(self):
+            FakeWin.calls += 1
+            if FakeWin.calls < 50:
+                app_gui.center_window(self, None)  # reentra como o <Map>
+
+        def winfo_width(self):
+            return 100
+
+        def winfo_height(self):
+            return 100
+
+        def winfo_screenwidth(self):
+            return 1920
+
+        def winfo_screenheight(self):
+            return 1080
+
+        def geometry(self, g):
+            self.g = g
+
+    fw = FakeWin()
+    app_gui.center_window(fw, None)
+    assert FakeWin.calls == 1, FakeWin.calls  # trava: só a 1ª chamada entra
+    assert fw.g.startswith("+"), fw.g
+    print("OK center_window sem recursao")
 
     print("TESTE REPLY: PASSOU")
 

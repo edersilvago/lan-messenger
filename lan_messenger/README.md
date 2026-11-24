@@ -240,9 +240,10 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   funciona como anotações (loopback real, vai p/ o histórico).
 - Chamadas de worker p/ UI via fila thread-safe (sem travar).
 
-## Responder mensagem específica (v1.30)
+## Responder mensagem específica (v1.30 / v1.31)
 
-- Botão direito em qualquer balão → "Responder" (1-1).
+- Botão direito em qualquer balão → "Responder" (1-1). **Duplo-clique
+  na mensagem faz o mesmo** (atalho estilo WhatsApp).
 - Prévia acima do campo de texto: "Respondendo a <nome>" + trecho; ✕
   cancela. Enter envia normalmente.
 - O balão enviado mostra a citação no topo: barra verde, nome do autor
@@ -362,6 +363,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   sozinha quando ele aparece online (marca "(pendente)" vira tique).
 - v1.30: responder mensagem específica — citação no balão (barra verde,
   autor + trecho) e prévia acima do campo de texto.
+- v1.31: duplo-clique na mensagem responde; citação com largura/altura
+  ajustadas; trava contra travamento ao centralizar janelas.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

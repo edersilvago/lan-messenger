@@ -31,12 +31,19 @@ GITHUB_URL = "https://github.com/edersilvago/lan-messenger"
 CRASH_LOG = config.APP_DATA / "logs" / "crash.log"
 
 
+_CRASHING = False  # evita recursão no próprio log (crash dentro do log)
+
+
 def log_crash(context: str, exc: BaseException | None = None) -> str:
     """Grava a exceção em logs/crash.log para análise. Nunca levanta.
 
     Formato: cabeçalho com data/hora + contexto, traceback completo e
     linha em branco. Devolve o caminho do arquivo (para a statusbar).
     """
+    global _CRASHING
+    if _CRASHING:  # recursão no log (pilha já no limite): não tenta gravar
+        return str(CRASH_LOG)
+    _CRASHING = True
     try:
         CRASH_LOG.parent.mkdir(parents=True, exist_ok=True)
         with open(CRASH_LOG, "a", encoding="utf-8") as f:
@@ -47,6 +54,8 @@ def log_crash(context: str, exc: BaseException | None = None) -> str:
             f.write("\n")
     except Exception:
         pass
+    finally:
+        _CRASHING = False
     return str(CRASH_LOG)
 
 
@@ -142,9 +151,9 @@ envia arquivos, com barra de progresso e Cancelar. Ctrl+V com print na
 precisa estar com o app aberto nessa hora. Sem fila no servidor: ninguém
 recebe com tudo desligado.
 - Responder a uma mensagem específica: botão direito no balão >
-"Responder"; a citação (autor + trecho) aparece dentro do balão enviado
-com barra verde, estilo WhatsApp. A prévia fica acima do campo de texto
-(✕ cancela).
+"Responder" (ou duplo-clique na mensagem); a citação (autor + trecho)
+aparece dentro do balão enviado com barra verde, estilo WhatsApp. A
+prévia fica acima do campo de texto (✕ cancela).
 - Mensagem em massa: marca grupos/usuários com caixas de seleção,
 Todos/Nenhum.
 - Conversa em grupo: janela por departamento, recebe os broadcasts.
@@ -232,6 +241,9 @@ diálogos de falha substituídos por aviso no rodapé.
 sozinha quando ele aparece online (tique troca de "(pendente)" p/ ✓).
 - v1.30: responder mensagem específica — citação no balão com barra
 verde (autor + trecho), prévia acima do campo de texto.
+- v1.31: duplo-clique na mensagem também responde; citação do balão
+com altura/espelho ajustados; correção de travamento ao centralizar
+janelas.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -359,8 +371,19 @@ def flash_window(widget: tk.Misc) -> bool:
         return False
 
 
+_CENTERING: set[int] = set()  # janelas em centralização (evita recursão)
+
+
 def center_window(win: tk.Misc, parent: tk.Misc | None = None) -> None:
-    """Centraliza a janela no desktop/monitor principal."""
+    """Centraliza a janela no desktop/monitor principal.
+
+    update_idletasks roda os callbacks idle pendentes (after_idle): sem a
+    trava, o _once do <Map> reentra aqui e a pilha estoura (crash v1.30).
+    """
+    key = id(win)
+    if key in _CENTERING:
+        return
+    _CENTERING.add(key)
     try:
         win.update_idletasks()
         w, h = win.winfo_width(), win.winfo_height()
@@ -371,6 +394,8 @@ def center_window(win: tk.Misc, parent: tk.Misc | None = None) -> None:
         pass
     except Exception as e:
         log_crash("center_window", e)
+    finally:
+        _CENTERING.discard(key)
 
 
 def esc_closes(win: tk.Misc, action) -> None:
@@ -563,22 +588,27 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
                      anchor="w").pack(fill="x", padx=12, pady=(8, 0))
     if reply:
         # citação no topo do balão (v1.30): barra verde + autor + trecho
+        # largura própria (não puxa o balão: wraplength curto + 1 linha)
         qbg = REPLY_QUOTE_BG_OUT if direction == "out" else REPLY_QUOTE_BG
         quote = ctk.CTkFrame(bubble, fg_color=qbg, corner_radius=6)
         quote.pack(fill="x", padx=8, pady=(6, 0))
         ctk.CTkFrame(quote, fg_color=REPLY_QUOTE_BAR, width=4,
                      corner_radius=2).pack(side="left", fill="y",
-                                           padx=(5, 0), pady=5)
+                                           padx=(5, 0), pady=4)
         qin = ctk.CTkFrame(quote, fg_color="transparent")
-        qin.pack(fill="x", padx=(3, 8), pady=5)
-        ctk.CTkLabel(qin, text=str(reply.get("name", ""))[:80],
+        qin.pack(fill="x", padx=(3, 7), pady=(4, 5))
+        qname = str(reply.get("name", ""))[:40]
+        qtext = str(reply.get("text", ""))[:140]
+        if len(str(reply.get("text", ""))) > 140:
+            qtext += "…"
+        ctk.CTkLabel(qin, text=qname,
                      text_color=REPLY_QUOTE_NAME,
                      font=ctk.CTkFont(size=11, weight="bold"),
                      anchor="w").pack(fill="x")
-        ctk.CTkLabel(qin, text=str(reply.get("text", ""))[:300],
+        ctk.CTkLabel(qin, text=qtext,
                      text_color=REPLY_QUOTE_FG,
                      font=ctk.CTkFont(size=12), anchor="w", justify="left",
-                     wraplength=max_w - 30).pack(fill="x")
+                     wraplength=220).pack(fill="x")
     segs = split_url_segments(text)
     if len(segs) == 1 and segs[0][0] == "text":
         ctk.CTkLabel(bubble, text=text, text_color=BUBBLE_FG,
@@ -917,7 +947,7 @@ class ChatWindow:
 
     def _bind_bubble_menu(self, row, direction: str, text: str,
                           name: str) -> None:
-        """Botão direito em qualquer parte do balão → "Responder" (v1.30)."""
+        """Balão: botão direito → menu; duplo-clique → Responder (v1.31)."""
         stack = [row]
         while stack:
             w = stack.pop()
@@ -925,12 +955,27 @@ class ChatWindow:
                 w.bind("<Button-3>",
                        lambda e, r=row, d=direction, t=text, n=name:
                        self._bubble_menu(e, r, d, t, n), add="+")
+                w.bind("<Double-Button-1>",
+                       lambda e, r=row, d=direction, t=text, n=name:
+                       self._bubble_dblclick(e, r, d, t, n), add="+")
             except tk.TclError:
                 continue
             try:
                 stack.extend(w.winfo_children())
             except tk.TclError:
                 pass
+
+    def _bubble_dblclick(self, event, row, direction: str, text: str,
+                         name: str) -> None:
+        """Duplo-clique no balão inicia a resposta (atalho do WhatsApp)."""
+        mid = getattr(row, "_mid", "")
+        if not mid or not text:
+            return
+        if direction == "in":
+            who = name or self.app.peer_label(self.ip)
+        else:
+            who = name or self.app.profile.effective_display()
+        self._start_reply(mid, who, text)
 
     def _bubble_menu(self, event, row, direction: str, text: str,
                      name: str) -> None:
