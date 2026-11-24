@@ -381,6 +381,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   foca o campo de texto e tenta trazer a conversa para frente.
 - v1.39: quebra automática de palavras longas nos balões; atalhos de
   texto viram emoji após envio (sem alterar URLs).
+- v1.40: Ajuda mostra indicador de nova versão; grupos podem ser
+  exportados/importados em JSON; clique no grupo seleciona para F2.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

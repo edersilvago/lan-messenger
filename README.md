@@ -26,6 +26,9 @@ Compatível com Windows 7 SP1 / 8 / 8.1 / 10 / 11 (64 bits), com instaladores de
 - **Foco real**: abrir conversa ou receber mensagem traz janela e cursor ao campo de texto (v1.38).
 - **Quebra automática**: palavras longas sem espaço quebram automaticamente nos balões (v1.39).
 - **Emoticons**: atalhos como `:)`, `<3`, `:D` viram emoji após envio (v1.39).
+- **Ajuda com atualização**: tela Ajuda indica quando há nova versão e oferece download (v1.40).
+- **Exportar/importar grupos**: Configurações dos Grupos exporta e importa organização em JSON (v1.40).
+- **Renomear grupo por F2**: clicar no grupo seleciona e F2 renomeia (v1.40).
 - **Mensagem para contato offline**: a mensagem fica na fila local e sai sozinha quando o colega aparece online (marca `(pendente)` vira tique) - o remetente precisa estar com o app aberto (v1.29).
 - **Log de erros**: falhas internas vão para `%APPDATA%\LANMessenger\logs\crash.log` com data, hora e traceback; aviso no rodapé e botão para abrir a pasta (v1.28).
 - **Instaladores versionados**: Inno Setup gera `Setup_LANMessenger_win10_11_vX.Y.exe` e `Setup_LANMessenger_win7_81_vX.Y.exe` com firewall e desinstalação completos.

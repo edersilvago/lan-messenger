@@ -6,6 +6,7 @@ foi reconstruído em CustomTkinter.
 """
 from __future__ import annotations
 
+import json
 import queue
 import os
 import re
@@ -119,6 +120,8 @@ lê os IDs desta máquina sozinho. O botão OK fica sempre visível no rodapé.
 valor aos demais PCs (Exportar/Importar).
 1.3 Aguarde alguns segundos: os colegas aparecem agrupados por departamento.
 Use "Atualizar Lista de Usuários" (botão direito no vazio) para forçar.
+1.4 Tela Ajuda mostra indicador quando há nova versão disponível, com botão
+para baixar a release.
 
 2. LISTA DE USUÁRIOS (fidelidade)
 - Verde = online, amarelo = ausente, vermelho = ocupado, cinza = offline.
@@ -129,6 +132,10 @@ ainda dá para conversar, mas confira firewall/VPN.
 avisa os colegas na hora (não espera o timeout).
 - Ver Informações mostra IP, status, "Visto há", IDs remotos e hardware
 (sistema, processador, RAM, disco).
+- Clicar no nome do grupo seleciona; F2 renomeia. Menu do grupo também
+oferece renomear, criar, apagar e mover.
+- Configurações dos Grupos: Exportar/Importar salva ou carrega a organização
+(apelidos, ocultos, personalizados, ordem e vínculos) em JSON.
 
 3. CONVERSANDO
 - Balões: recebidas em branco à esquerda, enviadas em verde à direita,
@@ -270,6 +277,8 @@ conversa foca a digitação; aviso silencioso de nova versão.
 notificação nova mensagem traz a conversa para frente e foca digitação.
 - v1.39: quebra automática de palavras longas nos balões; atalhos de
 texto viram emoji após envio (sem alterar URLs).
+- v1.40: Ajuda indica nova versão; grupos exportam/importam em JSON;
+clique no grupo seleciona e F2 renomeia.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -1789,6 +1798,7 @@ class App:
         self._tray_cmds: queue.Queue = queue.Queue()
         self._in_tray = False
         self._really_quit = False
+        self._update_available: tuple[str, str] | None = None
         self._flushing = False        # flush da fila em andamento
         self._flush_scheduled = False  # flush já agendado no after
         self._flush_again = False     # nova mensagem chegou durante o flush
@@ -1853,6 +1863,7 @@ class App:
 
     def _offer_update(self, version: str, url: str) -> None:
         """Avisa e leva o usuário à página oficial de Releases."""
+        self._update_available = (version, url)
         try:
             self.statusbar.configure(
                 text=f"Nova versão {version} disponível para download.")
@@ -2096,6 +2107,8 @@ class App:
         """Compat: estado de grupos recolhidos já vive em _collapsed_groups."""
 
     def _toggle_group(self, dept: str) -> None:
+        self._selected_group = dept
+        self._selected_ip = ""
         if dept in self._collapsed_groups:
             self._collapsed_groups.discard(dept)
         else:
@@ -3632,6 +3645,77 @@ class App:
         ctk.CTkButton(bot, text="Cancelar", width=100,
                       command=win.destroy).pack(side="right")
 
+    def export_groups(self, parent=None) -> None:
+        """Exporta organização de grupos para JSON (v1.40)."""
+        path = filedialog.asksaveasfilename(
+            parent=parent or self.root,
+            title="Exportar grupos",
+            defaultextension=".json",
+            initialfile="lan-messenger-grupos.json",
+            filetypes=[("JSON", "*.json"), ("Todos", "*.*")])
+        if not path:
+            return
+        data = {
+            "kind": "lan-messenger-groups",
+            "version": 1,
+            "group_aliases": dict(self.settings.group_aliases),
+            "hidden_groups": list(self.settings.hidden_groups),
+            "custom_groups": list(self.settings.custom_groups),
+            "peer_groups": dict(self.settings.peer_groups),
+            "group_order": list(self.settings.group_order),
+        }
+        try:
+            Path(path).write_text(
+                json.dumps(data, ensure_ascii=False, indent=2),
+                encoding="utf-8")
+        except OSError as e:
+            messagebox.showerror("Exportar grupos", f"Não foi possível salvar:\n{e}",
+                                 parent=parent or self.root)
+            return
+        messagebox.showinfo("Exportar grupos", "Grupos exportados com sucesso.",
+                            parent=parent or self.root)
+
+    def import_groups(self, parent=None) -> None:
+        """Importa organização de grupos de JSON (v1.40)."""
+        path = filedialog.askopenfilename(
+            parent=parent or self.root,
+            title="Importar grupos",
+            filetypes=[("JSON", "*.json"), ("Todos", "*.*")])
+        if not path:
+            return False
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, ValueError, UnicodeDecodeError) as e:
+            messagebox.showerror("Importar grupos", f"Arquivo inválido:\n{e}",
+                                 parent=parent or self.root)
+            return False
+        if not isinstance(data, dict) or data.get("kind") != "lan-messenger-groups":
+            messagebox.showerror("Importar grupos",
+                                 "Este arquivo não é uma exportação de grupos do LAN Messenger.",
+                                 parent=parent or self.root)
+            return False
+        if not messagebox.askyesno(
+                "Importar grupos",
+                "Importar substitui a organização atual de grupos "
+                "(apelidos, ocultos, personalizados, ordem e vínculos).\n\nContinuar?",
+                parent=parent or self.root):
+            return False
+        ga = data.get("group_aliases")
+        hg = data.get("hidden_groups")
+        cg = data.get("custom_groups")
+        pg = data.get("peer_groups")
+        go = data.get("group_order")
+        self.settings.group_aliases = dict(ga) if isinstance(ga, dict) else {}
+        self.settings.hidden_groups = list(hg) if isinstance(hg, list) else []
+        self.settings.custom_groups = list(cg) if isinstance(cg, list) else []
+        self.settings.peer_groups = dict(pg) if isinstance(pg, dict) else {}
+        self.settings.group_order = list(go) if isinstance(go, list) else []
+        profile.save(self.profile, self.settings)
+        self.refresh()
+        messagebox.showinfo("Importar grupos", "Grupos importados. A lista foi atualizada.",
+                            parent=parent or self.root)
+        return True
+
     def groups_dialog(self, parent) -> None:
         """Configurações dos Grupos (link da tela Geral): apelido + ocultar."""
         raw = ({str(i.get("dept") or "Geral") for i in self.disc.get_roster().values()}
@@ -3673,10 +3757,15 @@ class App:
             win.destroy()
         bot = ctk.CTkFrame(win, fg_color="transparent")
         bot.pack(fill="x", padx=8, pady=6)
-        ctk.CTkButton(bot, text="Restaurar padrão", width=140,
+        ctk.CTkButton(bot, text="Restaurar padrão", width=120,
                       command=reset).pack(side="left")
-        ctk.CTkButton(bot, text="OK", width=90, command=ok).pack(side="right")
-        ctk.CTkButton(bot, text="Cancelar", width=90,
+        ctk.CTkButton(bot, text="Exportar...", width=90,
+                      command=lambda: self.export_groups(win)).pack(side="left", padx=4)
+        ctk.CTkButton(bot, text="Importar...", width=90,
+                      command=lambda: (self.import_groups(win) and win.destroy())
+                      ).pack(side="left")
+        ctk.CTkButton(bot, text="OK", width=80, command=ok).pack(side="right")
+        ctk.CTkButton(bot, text="Cancelar", width=80,
                       command=win.destroy).pack(side="right", padx=4)
 
     def mass_dialog(self) -> None:
@@ -3777,6 +3866,16 @@ class App:
     def help_dialog(self, parent) -> None:
         """Ajuda completa (guia de uso e funcionalidades)."""
         win = ctk_dialog(self.root, "Ajuda", "600x560", resizable=(True, True))
+        upd = self._update_available
+        if upd:
+            ver, url = upd
+            bar = ctk.CTkFrame(win, fg_color=("gray90", "gray20"))
+            bar.pack(fill="x", padx=8, pady=(8, 0))
+            ctk.CTkLabel(bar, text=f"Nova versão {ver} disponível.",
+                         anchor="w").pack(side="left", padx=8, pady=6)
+            ctk.CTkButton(bar, text="Baixar", width=90,
+                          command=lambda u=url: open_url(u)).pack(
+                              side="right", padx=8, pady=6)
         txt = ctk.CTkTextbox(win, wrap="word")
         txt.pack(fill="both", expand=True, padx=8, pady=8)
         txt.insert("1.0", HELP_TEXT)

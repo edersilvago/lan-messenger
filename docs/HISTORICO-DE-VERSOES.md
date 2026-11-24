@@ -1,6 +1,6 @@
 # Histórico de versões
 
-Versão atual: **v1.39**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.40**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
 
 ## v1.0 / v1.1 — base P2P estilo clássico
 - Descoberta UDP, chat TCP direto, arquivos com sha256, presença, histórico local SQLite, instaladores.
@@ -64,6 +64,11 @@ Versão atual: **v1.39**. Cada versão traz mudanças visíveis ao usuário; o b
 
 ## v1.23 — menus e inbox
 - Menu de botão direito na principal (Atualizar, Novo Grupo, Massa, Ocultar offline); recebidos em `inbox/<Remetente>/`.
+
+## v1.40 — ajuda, grupos e organização
+- Tela de Ajuda mostra indicador quando há nova versão disponível, com botão para baixar.
+- Configurações dos Grupos permite exportar/importar organização em JSON (apelidos, ocultos, personalizados, ordem e vínculos).
+- Clicar no nome do grupo seleciona o grupo e permite renomear com F2.
 
 ## v1.39 — quebra automática e emoticons
 - Palavras longas sem espaço quebram automaticamente nos balões, sem estourar a conversa.
