@@ -23,6 +23,7 @@ Compatível com Windows 7 SP1 / 8 / 8.1 / 10 / 11 (64 bits), com instaladores de
 - **Envio sem trava**: ENTER não espera a rede; a mensagem entra na fila e o envio ocorre em segundo plano, com status no rodapé (v1.37).
 - **Foco ao clicar**: clique em área livre da conversa leva o cursor ao campo de texto (v1.37).
 - **Nova versão**: ao abrir, o app consulta o GitHub silenciosamente e avisa se houver release mais nova (v1.37).
+- **Foco real**: abrir conversa ou receber mensagem traz janela e cursor ao campo de texto (v1.38).
 - **Mensagem para contato offline**: a mensagem fica na fila local e sai sozinha quando o colega aparece online (marca `(pendente)` vira tique) - o remetente precisa estar com o app aberto (v1.29).
 - **Log de erros**: falhas internas vão para `%APPDATA%\LANMessenger\logs\crash.log` com data, hora e traceback; aviso no rodapé e botão para abrir a pasta (v1.28).
 - **Instaladores versionados**: Inno Setup gera `Setup_LANMessenger_win10_11_vX.Y.exe` e `Setup_LANMessenger_win7_81_vX.Y.exe` com firewall e desinstalação completos.

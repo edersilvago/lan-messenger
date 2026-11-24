@@ -377,6 +377,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   instantânea e migração das opções antigas (Normal/Grande/Extra grande).
 - v1.37: ENTER não bloqueia a UI; envio e ACK ocorrem em segundo plano;
   clique na conversa foca a digitação; aviso silencioso de nova versão.
+- v1.38: abrir conversa traz janela e foco real; notificação recebida
+  foca o campo de texto e tenta trazer a conversa para frente.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

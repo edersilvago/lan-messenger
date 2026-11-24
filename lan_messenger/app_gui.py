@@ -264,6 +264,8 @@ inclusive balões já abertos; layout validado de 620 px até 4K.
 qualquer tamanho inteiro entre 8 e 32 px, com prévia instantânea.
 - v1.37: envio não bloqueia mais a UI (TCP/ACK no worker); clique na
 conversa foca a digitação; aviso silencioso de nova versão.
+- v1.38: ao abrir conversa, janela e campo de texto recebem foco real;
+notificação nova mensagem traz a conversa para frente e foca digitação.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -1304,13 +1306,15 @@ class ChatWindow:
         self._dated("in", text, ts, mid=mid, reply=reply)
         self.update_status_line(info)
         self.win.after(0, self._announce)
-        if s.keep_focus:
-            self.win.after(0, self._focus_entry)
+        self.win.after(0, self._focus_entry)
 
     def _focus_entry(self) -> None:
         """Foco no campo de texto (nunca derruba se a janela fechou)."""
         try:
+            self.entry.focus()
             self.entry.focus_set()
+            if hasattr(self.entry, "_textbox"):
+                self.entry._textbox.focus_set()
         except tk.TclError:
             pass
         except Exception as e:
@@ -1346,12 +1350,9 @@ class ChatWindow:
     def _announce(self) -> None:
         """Sempre traz à frente + pisca se sem foco (novas mensagens)."""
         try:
-            self.win.lift()
-        except tk.TclError:
+            self._activate_chat_window(self)
+        except Exception:
             pass
-        except Exception as e:  # janela fechando durante o after(0)
-            log_crash("chat_announce", e)
-            return
         if not self.focused:
             flash_window(self.win)
 
@@ -2828,9 +2829,36 @@ class App:
     def open_chat(self, ip: str) -> None:
         w = self.chat_windows.get(ip)
         if w and w.win.winfo_exists():
-            w.win.lift()
+            self._activate_chat_window(w)
             return
         self.chat_windows[ip] = ChatWindow(self, ip, self.selected_info(ip))
+        self._activate_chat_window(self.chat_windows[ip])
+
+    def _activate_chat_window(self, w) -> None:
+        """Traz a conversa para frente e foca o campo de digitação."""
+        for delay in (0, 60, 180):
+            try:
+                w.win.after(delay, self._lift_chat_window, w)
+            except tk.TclError:
+                break
+
+    def _lift_chat_window(self, w) -> None:
+        try:
+            w.win.deiconify()
+        except tk.TclError:
+            pass
+        try:
+            w.win.lift()
+        except tk.TclError:
+            pass
+        try:
+            w.win.focus_force()
+        except tk.TclError:
+            pass
+        try:
+            w._focus_entry()
+        except tk.TclError:
+            pass
 
     def on_msg_threadsafe(self, msg: dict, ip: str) -> None:
         self._ui_call(self._on_msg, msg, ip)
