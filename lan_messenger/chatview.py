@@ -107,3 +107,49 @@ def format_size(num_bytes: float) -> str:
     if n >= 1024 * 1024:
         return f"{n / (1024 * 1024):,.1f} MB".replace(",", "X").replace(".", ",").replace("X", ".")
     return f"{n / 1024:,.0f} KB".replace(",", ".")
+
+
+_URL_RE = re.compile(r"(https?://[^\s]+|www\.[^\s]+)", re.IGNORECASE)
+# Ordem importa: combinações mais longas primeiro (v1.39).
+EMOTICON_MAP: tuple[tuple[str, str], ...] = (
+    (":'(", "😢"),
+    (":'-(", "😢"),
+    (":-)", "😊"), (":)", "😊"),
+    (":-(", "😞"), (":(", "😞"),
+    (":-D", "😃"), (":D", "😃"), (":-d", "😃"), (":d", "😃"),
+    (";-)", "😉"), (";)", "😉"),
+    (":-P", "😛"), (":P", "😛"), (":-p", "😛"), (":p", "😛"),
+    (":-O", "😮"), (":O", "😮"), (":-o", "😮"), (":o", "😮"),
+    (":-/", "😕"), (":/", "😕"),
+    (":-|", "😐"), (":|", "😐"),
+    ("<3", "❤️"),
+    ("(y)", "👍"), ("(Y)", "👍"),
+    ("(n)", "👎"), ("(N)", "👎"),
+)
+
+
+def translate_emoticons(text: str) -> str:
+    """Converte atalhos de texto em emoji após envio (v1.39)."""
+    raw = str(text or "")
+    if not raw:
+        return raw
+    parts = []
+    pos = 0
+    for m in _URL_RE.finditer(raw):
+        if m.start() > pos:
+            parts.append(_replace_emoticons(raw[pos:m.start()]))
+        parts.append(raw[m.start():m.end()])
+        pos = m.end()
+    if pos < len(raw):
+        parts.append(_replace_emoticons(raw[pos:]))
+    return "".join(parts)
+
+
+def _replace_emoticons(text: str) -> str:
+    for src, dst in EMOTICON_MAP:
+        if src not in text:
+            continue
+        # início/espaço antes; fim/espaço/pontuação depois (evita falsos positivos)
+        pattern = re.compile(r"(?<!\S)" + re.escape(src) + r"(?=\s|$|[.,!?;:\])}])")
+        text = pattern.sub(dst, text)
+    return text

@@ -1,6 +1,6 @@
 # Histórico de versões
 
-Versão atual: **v1.38**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.39**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
 
 ## v1.0 / v1.1 — base P2P estilo clássico
 - Descoberta UDP, chat TCP direto, arquivos com sha256, presença, histórico local SQLite, instaladores.
@@ -65,20 +65,21 @@ Versão atual: **v1.38**. Cada versão traz mudanças visíveis ao usuário; o b
 ## v1.23 — menus e inbox
 - Menu de botão direito na principal (Atualizar, Novo Grupo, Massa, Ocultar offline); recebidos em `inbox/<Remetente>/`.
 
-++## v1.38 — foco real ao abrir conversas
-+- Ao abrir ou trazer uma conversa existente, a janela é desminimizada,
-+  trazida para frente e o campo de texto recebe foco em três tentativas
-+  (0, 60 e 180 ms), cobrindo atraso de mapeamento do Windows.
-+- Mensagens recebidas trazem a conversa para frente e focam a digitação
-+  automaticamente, sem depender de `keep_focus`.
-+- Clique em área livre continua focando o campo.
-+
- ## v1.37 — envio sem travar a UI, foco e aviso de versão
-+- ENTER não executa mais ping, conexão TCP nem espera ACK na thread da UI. A mensagem é exibida e enfileirada na hora; o envio ocorre em segundo plano.
-+- Clique em área livre da conversa move o foco para o campo de texto.
-+- Ao iniciar, o app consulta o GitHub silenciosamente e avisa se houver release mais recente.
-+- Novo módulo `updates.py`, com comparação segura e URL validada.
-+
+## v1.39 — quebra automática e emoticons
+- Palavras longas sem espaço quebram automaticamente nos balões, sem estourar a conversa.
+- Atalhos de texto viram emoji após envio: `:) :-) :( :-( :D :-D ;) ;-) :P :-P <3 :O :-O :/ :-/ :'( (y) (n)` (e variantes comuns).
+- Conversão não altera URLs.
+
+## v1.38 — foco real ao abrir conversas
+- Ao abrir ou trazer uma conversa existente, a janela é desminimizada, trazida para frente e o campo de texto recebe foco em três tentativas (0, 60 e 180 ms), cobrindo atraso de mapeamento do Windows.
+- Mensagens recebidas trazem a conversa para frente e focam a digitação automaticamente, sem depender de `keep_focus`.
+- Clique em área livre continua focando o campo.
+
+## v1.37 — envio sem travar a UI, foco e aviso de versão
+- ENTER não executa mais ping, conexão TCP nem espera ACK na thread da UI. A mensagem é exibida e enfileirada na hora; o envio ocorre em segundo plano.
+- Clique em área livre da conversa move o foco para o campo de texto.
+- Ao iniciar, o app consulta o GitHub silenciosamente e avisa se houver release mais recente.
+- Novo módulo `updates.py`, com comparação segura e URL validada.
  ## v1.36 — tamanho da fonte digitado em pixels
 - As opções Normal/Grande/Extra grande foram substituídas por campo numérico em Configurações > Mensagens.
 - Aceita qualquer número inteiro entre 8 e 32 px; valor inválido exibe aviso e não fecha a configuração.

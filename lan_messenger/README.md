@@ -379,6 +379,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   clique na conversa foca a digitação; aviso silencioso de nova versão.
 - v1.38: abrir conversa traz janela e foco real; notificação recebida
   foca o campo de texto e tenta trazer a conversa para frente.
+- v1.39: quebra automática de palavras longas nos balões; atalhos de
+  texto viram emoji após envio (sem alterar URLs).
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

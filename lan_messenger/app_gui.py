@@ -161,6 +161,8 @@ em grupo.
 - ENTER não espera rede: a mensagem é exibida e enfileirada na hora; o
 envio ocorre em segundo plano, com status no rodapé. Clique em área
 livre da conversa foca o campo de texto.
+- Palavras longas sem espaço quebram automaticamente no balão.
+- Atalhos de texto viram emoji após envio: :) :D :( ;) :P <3 :O :/ :'( (y) (n).
 - Mensagem em massa: marca grupos/usuários com caixas de seleção,
 Todos/Nenhum.
 - Conversa em grupo: janela por departamento, recebe os broadcasts.
@@ -266,6 +268,8 @@ qualquer tamanho inteiro entre 8 e 32 px, com prévia instantânea.
 conversa foca a digitação; aviso silencioso de nova versão.
 - v1.38: ao abrir conversa, janela e campo de texto recebem foco real;
 notificação nova mensagem traz a conversa para frente e foca digitação.
+- v1.39: quebra automática de palavras longas nos balões; atalhos de
+texto viram emoji após envio (sem alterar URLs).
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -558,6 +562,24 @@ def clean_url(url: str) -> str:
     return url
 
 
+def soft_break(text: str, chunk: int = 30) -> str:
+    """Insere quebra invisível em sequências longas sem espaços (v1.39)."""
+    if not text:
+        return str(text or "")
+    out: list[str] = []
+    run = 0
+    for ch in str(text):
+        out.append(ch)
+        if ch.isspace():
+            run = 0
+        else:
+            run += 1
+            if run >= chunk:
+                out.append("\u200b")
+                run = 0
+    return "".join(out)
+
+
 def split_url_segments(text: str) -> list[tuple[str, str]]:
     """Divide texto em segmentos ("text"|"url", conteúdo) para links clicáveis.
 
@@ -654,9 +676,11 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
         # largura própria (não puxa o balão: wraplength curto + 1 linha)
         qbg = REPLY_QUOTE_BG_OUT if direction == "out" else REPLY_QUOTE_BG
         qname = str(reply.get("name", ""))[:40]
-        qtext = str(reply.get("text", ""))[:140]
-        if len(str(reply.get("text", ""))) > 140:
+        raw_qtext = str(reply.get("text", ""))
+        qtext = raw_qtext[:140]
+        if len(raw_qtext) > 140:
             qtext += "…"
+        qtext = soft_break(qtext)
         qwrap = max(160, int(max_w * 0.88))
         quote_h = quote_height(len(qtext), qwrap, font_px)
         quote = ctk.CTkFrame(bubble, fg_color=qbg, corner_radius=6,
@@ -691,7 +715,7 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
     segs = split_url_segments(text)
     if len(segs) == 1 and segs[0][0] == "text":
         lbl = _chat_role(ctk.CTkLabel(
-            bubble, text=text, text_color=BUBBLE_FG,
+            bubble, text=soft_break(text), text_color=BUBBLE_FG,
             font=ctk.CTkFont(size=font_px), anchor="w",
             justify="left", wraplength=max_w), "body")
         lbl.pack(fill="x", padx=12, pady=(4, 0))
@@ -702,9 +726,10 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
     else:
         # texto com link: segmentos em linhas; URL azul e clicável
         for kind, content in segs:
+            shown = soft_break(content)
             if kind == "url":
                 lk = _chat_role(ctk.CTkLabel(
-                    bubble, text=content, text_color=BUBBLE_LINK_FG,
+                    bubble, text=shown, text_color=BUBBLE_LINK_FG,
                     font=ctk.CTkFont(size=font_px, underline=True),
                     anchor="w", justify="left",
                     wraplength=max_w, cursor="hand2"), "link")
@@ -716,7 +741,7 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
                     pass
             else:
                 lb = _chat_role(ctk.CTkLabel(
-                    bubble, text=content, text_color=BUBBLE_FG,
+                    bubble, text=shown, text_color=BUBBLE_FG,
                     font=ctk.CTkFont(size=font_px), anchor="w",
                     justify="left", wraplength=max_w), "body")
                 lb.pack(fill="x", padx=12, pady=(4, 0))
@@ -1382,6 +1407,7 @@ class ChatWindow:
         text = self.entry.get("1.0", "end").strip()
         if not text:
             return
+        text = chatview.translate_emoticons(text)
         info = self.app.selected_info(self.ip)
         reply = self._reply
         self.entry.delete("1.0", "end")
@@ -1693,6 +1719,7 @@ class GroupChatWindow:
         text = self.entry.get("1.0", "end").strip()
         if not text:
             return
+        text = chatview.translate_emoticons(text)
         ips = self.members()
         if not ips:
             messagebox.showinfo("Grupo", f"Nenhum membro online em '{self.dept}'.", parent=self.win)
