@@ -14,7 +14,8 @@ Segunda cópia detecta a primeira pelo lock em `127.0.0.1:50009` e sai. Feche a 
 
 ## Colega online não recebe mensagem
 
-- P2P **não tem fila de offline**: destino precisa estar ligado e alcançável. A trava anti-offline pede confirmação antes de enviar; falha marca o contato offline e avisa.
+- Contato offline: a mensagem fica na fila local (marca `(pendente)`) e sai sozinha quando ele voltar — o app do remetente precisa estar aberto nessa hora.
+- Falha de envio também entra na fila (não se perde); o contato é marcado offline até responder.
 - Par "sinal fraco" é checado por TCP antes do envio.
 
 ## Mensagens chegam embaralhadas / falha de chave

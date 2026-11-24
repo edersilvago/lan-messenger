@@ -70,8 +70,8 @@ def make_hello(name: str, user: str) -> dict:
 
 
 def make_msg(from_name: str, from_user: str, text: str, to: str = "",
-             bcast: bool = False) -> dict:
-    return {"type": "msg", "id": uuid.uuid4().hex, "from_name": from_name,
+             bcast: bool = False, msg_id: str = "") -> dict:
+    return {"type": "msg", "id": msg_id or uuid.uuid4().hex, "from_name": from_name,
             "from_user": from_user, "to": to, "text": text,
             "bcast": bcast, "ts": time.time()}
 

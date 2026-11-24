@@ -14,6 +14,9 @@ CREATE TABLE IF NOT EXISTS files (
   id TEXT PRIMARY KEY, peer TEXT, filename TEXT,
   size INTEGER, path TEXT, ts REAL
 );
+CREATE TABLE IF NOT EXISTS outbox (
+  id TEXT PRIMARY KEY, peer TEXT, text TEXT, ts REAL
+);
 """
 
 
@@ -48,6 +51,44 @@ class Store:
             "SELECT direction, text, datetime(ts,'unixepoch','localtime')"
             " FROM messages WHERE peer=? ORDER BY ts ASC LIMIT ?", (peer, limit))
         return list(cur.fetchall())
+
+    def messages_with_ids(self, peer: str,
+                          limit: int = 100) -> list[tuple[str, str, str, str]]:
+        """Como messages_with, mas com o id (marca balão pendente)."""
+        cur = self._conn.execute(
+            "SELECT id, direction, text, datetime(ts,'unixepoch','localtime')"
+            " FROM messages WHERE peer=? ORDER BY ts ASC LIMIT ?", (peer, limit))
+        return list(cur.fetchall())
+
+    # -- fila de saída (v1.29): mensagens p/ quem estava offline ----------
+    def queue_message(self, msg_id: str, peer: str, text: str) -> None:
+        """Guarda a mensagem para reenvio automático quando o peer voltar."""
+        self._conn.execute(
+            "INSERT OR REPLACE INTO outbox VALUES (?,?,?,?)",
+            (msg_id, peer, text, time.time()))
+        self._conn.commit()
+
+    def pending_messages(self) -> list[tuple[str, str, str]]:
+        """Fila pendente, mais antiga primeiro. [(id, peer, text)]."""
+        cur = self._conn.execute(
+            "SELECT id, peer, text FROM outbox ORDER BY ts ASC")
+        return list(cur.fetchall())
+
+    def pending_ids(self, peer: str | None = None) -> set[str]:
+        """Ids ainda não entregues (peer=None: todos)."""
+        if peer is None:
+            cur = self._conn.execute("SELECT id FROM outbox")
+        else:
+            cur = self._conn.execute("SELECT id FROM outbox WHERE peer=?", (peer,))
+        return {r[0] for r in cur.fetchall()}
+
+    def pending_count(self, peer: str | None = None) -> int:
+        return len(self.pending_ids(peer))
+
+    def drop_pending(self, msg_id: str) -> None:
+        """Remove da fila (entregue ou descartada)."""
+        self._conn.execute("DELETE FROM outbox WHERE id=?", (msg_id,))
+        self._conn.commit()
 
     def list_peers(self) -> list[str]:
         """Peers com histórico (ordenados)."""

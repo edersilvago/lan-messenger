@@ -3,23 +3,34 @@ Roda: python -m lan_messenger.test_tcp_presence
 """
 from __future__ import annotations
 
+import socket
 import time
 
 from . import chat, config, discovery
 
 
+def _free_port() -> int:
+    """Porta TCP livre (evita colisão com porta efêmera de outro app)."""
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+
 def main() -> None:
     # 1. hello TCP: responde o beacon sem virar mensagem de chat
+    port = _free_port()
     got_msg: list = []
     beacon = {"type": "beacon", "name": "PC-B", "user": "b",
               "display": "PC-B", "dept": "Geral", "status": "online",
               "ts": time.time()}
     srv = chat.ChatServer(on_message=lambda m, ip: got_msg.append(m),
-                          tcp_port=50981,
+                          tcp_port=port,
                           on_hello=lambda: dict(beacon)).start()
     time.sleep(0.3)
     reply = chat.fetch_presence("127.0.0.1", from_name="A", from_user="a",
-                                tcp_port=50981, timeout=3.0, key=None)
+                                tcp_port=port, timeout=3.0, key=None)
     assert reply.get("type") == "beacon" and reply.get("name") == "PC-B", reply
     assert got_msg == [], got_msg  # hello não abre conversa
     srv.stop()

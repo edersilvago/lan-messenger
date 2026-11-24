@@ -14,6 +14,7 @@ import time
 import tkinter as tk
 import traceback
 import unicodedata
+import uuid
 from tkinter import filedialog, messagebox
 from pathlib import Path
 
@@ -47,6 +48,41 @@ def log_crash(context: str, exc: BaseException | None = None) -> str:
     except Exception:
         pass
     return str(CRASH_LOG)
+
+
+def flush_outbox(store, is_online, send, on_delivered=None) -> list[str]:
+    """Tenta entregar a fila de saída (v1.29). Devolve os ids entregues.
+
+    is_online(peer) decide se vale tentar agora; send(peer, text, msg_id)
+    levanta exceção quando não entrega. Nunca levanta: uma falha não para
+    as outras mensagens da fila.
+    """
+    done: list[str] = []
+    try:
+        pend = store.pending_messages()
+    except Exception as e:
+        log_crash("outbox_list", e)
+        return done
+    for mid, peer, text in pend:
+        try:
+            if not is_online(peer):
+                continue
+            send(peer, text, mid)
+        except Exception:
+            continue
+        try:
+            store.drop_pending(mid)
+        except Exception as e:
+            log_crash("outbox_drop", e)
+            continue
+        done.append(mid)
+        if on_delivered is not None:
+            try:
+                on_delivered(mid, peer, text)
+            except Exception as e:
+                log_crash("outbox_cb", e)
+    return done
+
 
 try:
     from . import tray as tray_mod
@@ -101,9 +137,10 @@ conforme Config > Atalhos).
 envia arquivos, com barra de progresso e Cancelar. Ctrl+V com print na
 área de transferência envia o print como PNG.
 - Botões no topo da conversa: informações, AnyDesk, RustDesk.
-- Se o destino estiver offline, o app avisa antes de enviar (no P2P não há
-fila: offline não recebe). Se o envio falhar, o contato é marcado offline
-na hora e o erro aparece na tela — ninguém fica esperando resposta.
+- Se o destino estiver offline, a mensagem fica na fila local (balão com
+"(pendente)") e sai sozinha quando o contato aparecer online — o remetente
+precisa estar com o app aberto nessa hora. Sem fila no servidor: ninguém
+recebe com tudo desligado.
 - Mensagem em massa: marca grupos/usuários com caixas de seleção,
 Todos/Nenhum.
 - Conversa em grupo: janela por departamento, recebe os broadcasts.
@@ -185,8 +222,10 @@ comentários internos); sem mudança de comportamento.
 - v1.26: notificações do sistema (toast no Win10/11), menções @nome na
 conversa em grupo e link do projeto no Ajuda/Sobre.
 - v1.27: links http(s)/www. nas mensagens viram clicáveis no balão.
-- v1.28: log de erros em logs\crash.log (data, hora e traceback) e
+- v1.28: log de erros em logs\\crash.log (data, hora e traceback) e
 diálogos de falha substituídos por aviso no rodapé.
+- v1.29: mensagem para contato offline fica na fila local e é entregue
+sozinha quando ele aparece online (tique troca de "(pendente)" p/ ✓).
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -528,9 +567,13 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
                              justify="left", wraplength=max_w).pack(
                     fill="x", padx=12, pady=(4, 0))
     if clock:
-        ctk.CTkLabel(bubble, text=clock, text_color=BUBBLE_TS_FG,
-                     font=ctk.CTkFont(size=10),
-                     anchor="e").pack(fill="x", padx=12, pady=(0, 8))
+        ts_lbl = ctk.CTkLabel(bubble, text=clock, text_color=BUBBLE_TS_FG,
+                              font=ctk.CTkFont(size=10), anchor="e")
+        ts_lbl.pack(fill="x", padx=12, pady=(0, 8))
+        try:
+            row._clock_label = ts_lbl  # v1.29: p/ virar tique ao entregar
+        except Exception:
+            pass
     else:
         ctk.CTkLabel(bubble, text="", font=ctk.CTkFont(size=4)).pack(pady=(0, 6))
     return row
@@ -651,11 +694,14 @@ def _emoji_pick(win, entry, ch: str) -> None:
         pass
 
 
-def bubble_clock(direction: str, ts: str) -> str:
-    """Horário p/ dentro do balão (+ tique de entregue no enviado)."""
+def bubble_clock(direction: str, ts: str, pending: bool = False) -> str:
+    """Horário p/ dentro do balão (+ tique de entregue no enviado).
+
+    pending=True (v1.29): mensagem na fila, ainda sem ACK do contato.
+    """
     clock = chatview.bubble_time(ts)
     if direction == "out" and clock:
-        clock = f"{clock} ✓"
+        clock = f"{clock} (pendente)" if pending else f"{clock} ✓"
     return clock
 
 
@@ -726,9 +772,12 @@ class ChatWindow:
         # histórico recente (tela Mensagens: "Exibir mensagens recentes")
         # carimbo sempre visível no balão (HH:MM:SS)
         self._last_date = ""
+        self._pending: dict[str, object] = {}      # mid -> linha do balão
+        self._pending_ts: dict[str, str] = {}
         if app.settings.show_recent:
-            for direction, text, ts in app.store.messages_with(ip):
-                self._dated(direction, text, ts)
+            pend = app.store.pending_ids(ip)
+            for mid, direction, text, ts in app.store.messages_with_ids(ip):
+                self._dated(direction, text, ts, mid=mid, pending=mid in pend)
             scroll_end(self.scroll)
         self._sys(f"--- conversa com {roster.label_of(info)}@{ip} ---")
         self.apply_font()
@@ -791,15 +840,35 @@ class ChatWindow:
         ctk.CTkLabel(self.scroll, text=line, text_color="gray",
                      font=ctk.CTkFont(size=11)).pack(pady=2)
 
-    def _dated(self, direction: str, text: str, ts: str, name: str = "") -> None:
+    def _dated(self, direction: str, text: str, ts: str, name: str = "",
+               mid: str = "", pending: bool = False) -> None:
         show_pill = ts and self.app.settings.show_datetime
         label = chatview.date_label(ts) if show_pill else ""
         if label and label != self._last_date:
             build_date_pill(self.scroll, label)
             self._last_date = label
-        build_bubble(self.scroll, direction, text, bubble_clock(direction, ts),
-                     name=name)
+        row = build_bubble(self.scroll, direction, text,
+                           bubble_clock(direction, ts, pending=pending),
+                           name=name)
+        if pending and mid:
+            self._pending[mid] = row
+            self._pending_ts[mid] = ts
         scroll_end(self.scroll)
+
+    def mark_delivered(self, mid: str) -> None:
+        """Fila entregou: troca "(pendente)" pelo tique (v1.29)."""
+        row = self._pending.pop(mid, None)
+        ts = self._pending_ts.pop(mid, "")
+        if row is None:
+            return
+        lbl = getattr(row, "_clock_label", None)
+        try:
+            if lbl is not None:
+                lbl.configure(text=bubble_clock("out", ts))
+        except (tk.TclError, AttributeError):
+            pass
+        except Exception as e:
+            log_crash("mark_delivered", e)
 
     def _append(self, line: str, at_bottom: bool = True) -> None:
         self._sys(line)
@@ -886,44 +955,35 @@ class ChatWindow:
         if not text:
             return
         info = self.app.selected_info(self.ip)
+        self.entry.delete("1.0", "end")
+        self.app.touch()
+        # offline: não bloqueia mais o envio (v1.29) — entra na fila e sai
+        # sozinho quando o contato aparecer online
         if str(info.get("status", "online")) == "offline":
-            if not messagebox.askyesno(
-                    "Usuário offline",
-                    f"{roster.label_of(info)} está offline (sem beacon há "
-                    f"{self.app.seen_age_str(self.ip)}).\n"
-                    "No P2P não há fila: a mensagem NÃO será entregue.\n\n"
-                    "Tentar enviar mesmo assim?", parent=self.win):
-                return
-        elif self.app.disc.is_stale(self.ip):
+            self.app.queue_outgoing(self.ip, text)
+            return
+        if self.app.disc.is_stale(self.ip):
             ok, _msg = networks.tcp_ping(self.ip, config.TCP_CHAT_PORT,
                                           timeout=config.TCP_CONFIRM_TIMEOUT)
             if not ok:
                 self.app.disc.mark_unreachable(self.ip)
                 self.app.refresh()
-                messagebox.showwarning(
-                    "Sem resposta",
-                    f"{roster.label_of(info)} não respondeu no TCP "
-                    f"({config.TCP_CHAT_PORT}). Marcado como offline.\n"
-                    "Confira firewall/VPN e tente de novo.", parent=self.win)
+                self.app.queue_outgoing(self.ip, text)
                 return
         try:
             mid = chat.send_message(self.ip, text,
                                     from_name=self.app.profile.effective_display(),
                                     from_user=config.my_user(), key=self.app.key)
-        except Exception as e:  # noqa: BLE001 - MVP mostra erro na tela
+        except Exception:  # noqa: BLE001 - falhou: fica na fila, sem erro modal
             self.app.disc.mark_unreachable(self.ip)
             self.app.refresh()
-            messagebox.showerror(
-                "Falha",
-                f"{e}\n\nUsuário marcado como offline (não ficou esperando: "
-                "o envio falhou na hora).", parent=self.win)
+            self.app.queue_outgoing(self.ip, text)
             return
         self.app.store.add_message(mid, self.ip, "out", text)
         logger.log_message(self.app.settings, self.app.peer_label(self.ip), "out", text)
         ts = time.strftime("%d/%m/%Y - %H:%M:%S")  # sempre: identifica a hora
         self._dated("out", text, ts)
-        self.entry.delete("1.0", "end")
-        self.app.touch()
+        self.app.flush_outbox_soon()
 
     def invite_dialog(self) -> None:
         """Convidar: envia convite a outro usuário e abre a conversa com ele."""
@@ -1288,6 +1348,8 @@ class App:
         self._tray_cmds: queue.Queue = queue.Queue()
         self._in_tray = False
         self._really_quit = False
+        self._flushing = False        # flush da fila em andamento
+        self._flush_scheduled = False  # flush já agendado no after
         self.chat_windows: dict[str, ChatWindow] = {}
         self.group_windows: dict[str, GroupChatWindow] = {}
         self._collapsed_groups: set[str] = set()
@@ -1313,6 +1375,7 @@ class App:
         self.root.after(250, self._pump_file_asks)
         self.root.after(250, self._pump_tray_cmds)
         self.root.after(100, self._pump_ui)
+        self.root.after(4000, self._outbox_tick)
         root.bind_all("<KeyPress>", lambda e: self.touch(), add="+")
         root.bind_all("<ButtonPress>", lambda e: self.touch(), add="+")
         esc_closes(root, self._on_esc_main)
@@ -1337,6 +1400,95 @@ class App:
             except Exception:
                 pass
         self.root.report_callback_exception = report
+
+    # -- fila de saída: mensagem para contato offline (v1.29) ------------
+    def queue_outgoing(self, ip: str, text: str) -> None:
+        """Guarda a mensagem no banco; sai sozinha quando o contato voltar."""
+        mid = uuid.uuid4().hex
+        try:
+            self.store.add_message(mid, ip, "out", text)
+            self.store.queue_message(mid, ip, text)
+        except Exception as e:
+            log_crash("outbox_queue", e)
+            return
+        logger.log_message(self.settings, self.peer_label(ip), "out", text)
+        ts = time.strftime("%d/%m/%Y - %H:%M:%S")
+        win = self.chat_windows.get(ip)
+        if win is not None:
+            win._dated("out", text, ts, mid=mid, pending=True)
+        try:
+            self.statusbar.configure(
+                text=f"Mensagem guardada para {self.peer_label(ip)} — "
+                     "sai sozinha quando ele ficar online.")
+        except tk.TclError:
+            pass
+        self.flush_outbox_soon()
+
+    def flush_outbox_soon(self) -> None:
+        """Agenda um flush (curto) sem empilhar vários no after."""
+        if self._flush_scheduled or self._really_quit:
+            return
+        self._flush_scheduled = True
+        try:
+            self.root.after(800, self._flush_outbox)
+        except (tk.TclError, RuntimeError):
+            self._flush_scheduled = False
+
+    def _peer_online(self, ip: str) -> bool:
+        """Só tenta entregar se o contato aparece online na lista."""
+        try:
+            info = self.disc.get_roster().get(ip)
+        except Exception:
+            return False
+        return bool(info) and str(info.get("status", "online")) != "offline"
+
+    def _send_queued(self, ip: str, text: str, mid: str) -> None:
+        """Envio da fila: mesmo id do banco (balão vira tique ao entregar)."""
+        chat.send_message(ip, text,
+                          from_name=self.profile.effective_display(),
+                          from_user=config.my_user(), key=self.key, msg_id=mid)
+
+    def _flush_outbox(self) -> None:
+        """Dispara o flush em thread (socket nunca na thread da UI)."""
+        self._flush_scheduled = False
+        if self._flushing or self._really_quit:
+            return
+        self._flushing = True
+
+        def done(mid: str, ip: str, _text: str) -> None:
+            self._ui_call(self._queued_delivered, mid, ip)
+
+        def run() -> None:
+            try:
+                flush_outbox(self.store, self._peer_online, self._send_queued, done)
+            finally:
+                self._flushing = False
+
+        try:
+            threading.Thread(target=run, daemon=True, name="outbox").start()
+        except Exception as e:
+            self._flushing = False
+            log_crash("outbox_thread", e)
+
+    def _queued_delivered(self, mid: str, ip: str) -> None:
+        """Main thread: fila entregou (troca o balão e avisa no rodapé)."""
+        win = self.chat_windows.get(ip)
+        if win is not None:
+            win.mark_delivered(mid)
+        try:
+            self.statusbar.configure(
+                text=f"Mensagem da fila entregue a {self.peer_label(ip)}.")
+        except tk.TclError:
+            pass
+
+    def _outbox_tick(self) -> None:
+        """Retenta a fila a cada 10s enquanto o app estiver aberto."""
+        self._flush_outbox()
+        if not self._really_quit:
+            try:
+                self.root.after(10000, self._outbox_tick)
+            except (tk.TclError, RuntimeError):
+                pass
 
     def _on_esc_main(self) -> None:
         """ESC na principal minimiza (bandeja, ou barra se configurado)."""

@@ -1,6 +1,6 @@
 # Histórico de versões
 
-Versão atual: **v1.28**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.29**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
 
 ## v1.0 / v1.1 — base P2P estilo clássico
 - Descoberta UDP, chat TCP direto, arquivos com sha256, presença, histórico local SQLite, instaladores.
@@ -64,6 +64,14 @@ Versão atual: **v1.28**. Cada versão traz mudanças visíveis ao usuário; o b
 
 ## v1.23 — menus e inbox
 - Menu de botão direito na principal (Atualizar, Novo Grupo, Massa, Ocultar offline); recebidos em `inbox/<Remetente>/`.
+
+## v1.29 — fila para contato offline
+- Enviar para quem está offline não abre mais aviso de falha: a mensagem é gravada no SQLite (tabela `outbox`) e aparece no balão como `HH:MM:SS (pendente)`.
+- Um worker tenta entregar a cada 10s e também logo após o envio; ao receber o ACK, `drop_pending()` limpa a fila e o balão troca `(pendente)` pelo tique ✓ (rodapé avisa).
+- Falha de TCP também entra na fila: a mensagem não se perde, fica pendente até o contato responder.
+- `chat.send_message(..., msg_id=...)` mantém o id da fila de ponta a ponta; `store.messages_with_ids()` marca o histórico pendente ao reabrir a conversa.
+- Limite honesto: o remetente precisa estar com o app aberto quando o destinatário voltar. Sem servidor, não há entrega com os dois desligados.
+- Teste `test_outbox.py`.
 
 ## v1.28 — log de erros
 - Falhas internas passam a ser gravadas em `%APPDATA%\LANMessenger\logs\crash.log` com data, hora, contexto e traceback completo (`log_crash()` em `app_gui.py`).

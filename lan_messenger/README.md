@@ -240,6 +240,18 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   funciona como anotações (loopback real, vai p/ o histórico).
 - Chamadas de worker p/ UI via fila thread-safe (sem travar).
 
+## Fila para contato offline (v1.29)
+
+- Enviar para quem está offline não abre mais aviso: a mensagem entra na
+  fila local (SQLite, tabela `outbox`) e aparece no balão como
+  `HH:MM:SS (pendente)`.
+- O app tenta entregar a cada 10s e ao voltar o contato para a lista; ao
+  receber o ACK, a marca vira `HH:MM:SS ✓` e o rodapé avisa.
+- Vale também para falha de envio (TCP sem resposta): a mensagem não é
+  perdida, fica pendente.
+- Limite honesto: o remetente precisa estar com o app aberto quando o
+  destinatário voltar. Sem servidor, não há entrega com os dois desligados.
+
 ## Log de erros do aplicativo (v1.28)
 
 - Falhas internas (callbacks da interface, threads de rede/arquivos e
@@ -335,11 +347,14 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
 - v1.27: links http(s)/www. nas mensagens viram clicáveis no balão.
 - v1.28: log de erros em `logs\crash.log` (data, hora e traceback), aviso
   no rodapé em vez de diálogo e botão para abrir a pasta do log.
+- v1.29: mensagem para contato offline fica na fila local e é entregue
+  sozinha quando ele aparece online (marca "(pendente)" vira tique).
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 
-- Sem mensagem offline: destino precisa estar ligado e alcançável
-  (sem servidor não há fila; o app avisa em vez de fingir que enviou).
+- Sem entrega garantida: a fila local guarda mensagens para contatos
+  offline, mas só entrega se o remetente estiver com o app aberto quando
+  o destinatário voltar (sem servidor, nada chega com os dois desligados).
 - Beacons (presença/nome/departamento) e nomes de arquivo seguem visíveis;
   texto do chat e blocos de arquivo usam PSK AES-256-GCM quando há chave.
 
