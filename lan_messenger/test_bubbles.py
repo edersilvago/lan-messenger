@@ -104,11 +104,11 @@ def main() -> None:
 
         assert app_gui.bubble_max_w(W(1)) == 380          # sem medida: padrão
         assert app_gui.bubble_max_w(W(0)) == 380
-        assert app_gui.bubble_max_w(W(600)) == 450        # 75% de 600
-        assert app_gui.bubble_max_w(W(1920)) == 1200      # teto
-        assert app_gui.bubble_max_w(W(300)) == 300        # piso (75% = 225)
+        assert app_gui.bubble_max_w(W(600)) == 564        # 94% de 600
+        assert app_gui.bubble_max_w(W(1920)) == 1804      # sem teto fixo
+        assert app_gui.bubble_max_w(W(300)) == 300        # piso (94% = 282)
         # sem medida própria: cai na janela pai
-        assert app_gui.bubble_max_w(W(0, W(1000))) == 750
+        assert app_gui.bubble_max_w(W(0, W(1000))) == 940
         # rewrap: rótulos marcados acompanham a nova largura
         n = app_gui.rewrap_bubbles(host, 600)
         assert n >= 2, n

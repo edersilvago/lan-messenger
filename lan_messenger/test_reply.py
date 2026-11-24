@@ -64,6 +64,12 @@ def main() -> None:
         assert "Ana" in texts, texts
         assert "mensagem original" in texts, texts
         assert "ok" in texts
+        r.update_idletasks()  # teste direto, fora de callback Tk
+        bubble = next(c for c in row.winfo_children()
+                      if isinstance(c, ctk.CTkFrame))
+        quote = next(c for c in bubble.winfo_children()
+                     if isinstance(c, ctk.CTkFrame))
+        assert quote.winfo_height() < 100, quote.winfo_height()
         # sem reply: sem citação
         row2 = app_gui.build_bubble(host, "in", "só texto")
         texts2 = []
@@ -77,7 +83,7 @@ def main() -> None:
         walk2(row2)
         non_empty = [t for t in texts2 if t]
         assert "só texto" in non_empty and len(non_empty) == 1, texts2
-        print("OK balão (citação visível; sem reply = label único)")
+        print("OK balão (citação compacta; sem reply = label único)")
     finally:
         try:
             r.destroy()

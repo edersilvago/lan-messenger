@@ -249,6 +249,8 @@ reajuste automático ao redimensionar).
 - v1.33: correção definitiva do erro "maximum recursion depth exceeded"
 ao abrir ou rolar conversas; callbacks Tk não executam mais eventos
 pendentes dentro de outros callbacks.
+- v1.34: balões usam 94% da conversa sem teto fixo; citação compacta
+(48–80 px); abrir/maximizar preserva área visível e posição da rolagem.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -453,24 +455,31 @@ def ctk_dialog(parent: tk.Misc, title: str, geom: str,
 
 
 def scroll_end(scroll) -> None:
-    """Rola ao fim depois do layout, sem update_idletasks recursivo."""
-    def _go() -> None:
+    """Rola ao fim após duas fases do layout, sem eventos recursivos."""
+    def _go(final: bool = False) -> None:
         try:
-            scroll._scroll_end_job = None
-        except Exception:
-            pass
-        try:
-            scroll._parent_canvas.yview_moveto(1.0)
+            canvas = scroll._parent_canvas
+            bbox = canvas.bbox("all")
+            if bbox:
+                canvas.configure(scrollregion=bbox)
+            canvas.yview_moveto(1.0)
         except (tk.TclError, AttributeError):
             pass
         except Exception as e:  # frame destruído no meio do after
             log_crash("scroll_end", e)
+        if final:
+            try:
+                scroll._scroll_end_jobs = []
+            except Exception:
+                pass
 
     try:
-        old = getattr(scroll, "_scroll_end_job", None)
-        if old is not None:
+        for old in getattr(scroll, "_scroll_end_jobs", []):
             scroll.after_cancel(old)
-        scroll._scroll_end_job = scroll.after(60, _go)
+        scroll._scroll_end_jobs = [
+            scroll.after(80, _go),
+            scroll.after(320, lambda: _go(True)),
+        ]
     except (tk.TclError, AttributeError):
         pass
 
@@ -560,8 +569,8 @@ def split_url_segments(text: str) -> list[tuple[str, str]]:
 def bubble_max_w(parent: tk.Misc) -> int:
     """Largura de quebra do balão proporcional à janela (v1.32).
 
-    75% da largura real, entre 300 e 1200 px: janela pequena acompanha a
-    tela, maximizada usa quase toda a linha (como o exemplo do usuário).
+    94% da largura real, mínimo 300 px: texto longo usa quase toda a
+    conversa em qualquer tamanho, sem teto fixo na janela maximizada.
     """
     w = 0
     try:
@@ -575,7 +584,7 @@ def bubble_max_w(parent: tk.Misc) -> int:
             w = 0
     if w <= 1:
         return 380
-    return max(300, min(1200, int(w * 0.75)))
+    return max(300, int(w * 0.94))
 
 
 def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
@@ -610,17 +619,25 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
         # citação no topo do balão (v1.30): barra verde + autor + trecho
         # largura própria (não puxa o balão: wraplength curto + 1 linha)
         qbg = REPLY_QUOTE_BG_OUT if direction == "out" else REPLY_QUOTE_BG
-        quote = ctk.CTkFrame(bubble, fg_color=qbg, corner_radius=6)
-        quote.pack(fill="x", padx=8, pady=(6, 0))
-        ctk.CTkFrame(quote, fg_color=REPLY_QUOTE_BAR, width=4,
-                     corner_radius=2).pack(side="left", fill="y",
-                                           padx=(5, 0), pady=4)
-        qin = ctk.CTkFrame(quote, fg_color="transparent")
-        qin.pack(fill="x", padx=(3, 7), pady=(4, 5))
         qname = str(reply.get("name", ""))[:40]
         qtext = str(reply.get("text", ""))[:140]
         if len(str(reply.get("text", ""))) > 140:
             qtext += "…"
+        qwrap = max(160, int(max_w * 0.88))
+        qchars = max(20, qwrap // 7)
+        qlines = max(1, min(3, (len(qtext) + qchars - 1) // qchars))
+        quote_h = 48 + (qlines - 1) * 16
+        quote = ctk.CTkFrame(bubble, fg_color=qbg, corner_radius=6,
+                             height=quote_h)
+        quote.pack_propagate(False)
+        quote.pack(fill="x", padx=8, pady=(6, 0))
+        ctk.CTkFrame(quote, fg_color=REPLY_QUOTE_BAR, width=4,
+                     corner_radius=2).pack(side="left", fill="y",
+                                           padx=(5, 0), pady=4)
+        qin = ctk.CTkFrame(quote, fg_color="transparent",
+                           height=quote_h - 8)
+        qin.pack_propagate(False)
+        qin.pack(fill="x", padx=(3, 7), pady=(4, 5))
         ctk.CTkLabel(qin, text=qname,
                      text_color=REPLY_QUOTE_NAME,
                      font=ctk.CTkFont(size=11, weight="bold"),
@@ -629,10 +646,13 @@ def build_bubble(parent: tk.Misc, direction: str, text: str, clock: str = "",
                             text_color=REPLY_QUOTE_FG,
                             font=ctk.CTkFont(size=12), anchor="w",
                             justify="left",
-                            wraplength=max(160, int(max_w * 0.6)))
+                            wraplength=qwrap)
         qlbl.pack(fill="x")
         try:
-            qlbl._bubble_wrap = 0.6  # reajusta ao redimensionar (v1.32)
+            qlbl._bubble_wrap = 0.88  # reajusta ao redimensionar (v1.34)
+            qlbl._quote_frame = quote
+            qlbl._quote_body = qin
+            qlbl._quote_text_len = len(qtext)
         except Exception:
             pass
     segs = split_url_segments(text)
@@ -696,7 +716,17 @@ def rewrap_bubbles(scroll, max_w: int | None = None) -> int:
         frac = getattr(w, "_bubble_wrap", None)
         if frac:
             try:
-                w.configure(wraplength=max(120, int(max_w * float(frac))))
+                wrap = max(120, int(max_w * float(frac)))
+                w.configure(wraplength=wrap)
+                quote = getattr(w, "_quote_frame", None)
+                body = getattr(w, "_quote_body", None)
+                if quote is not None and body is not None:
+                    chars = max(20, wrap // 7)
+                    size = int(getattr(w, "_quote_text_len", 1))
+                    lines = max(1, min(3, (size + chars - 1) // chars))
+                    height = 48 + (lines - 1) * 16
+                    quote.configure(height=height)
+                    body.configure(height=height - 8)
                 n += 1
             except (tk.TclError, ValueError):
                 pass
@@ -712,20 +742,51 @@ def bind_rewrap(win: tk.Misc, scroll) -> None:
 
     Debounce de 200 ms: <Configure> dispara a cada movimento do mouse.
     """
-    state = {"job": None, "w": 0}
+    state = {"job": None, "w": 0, "restore": []}
 
     def _go() -> None:
         state["job"] = None
         try:
             w = bubble_max_w(scroll)
+            canvas = scroll._parent_canvas
+            view = canvas.yview()
         except tk.TclError:
             return
         if w == state["w"]:
             return
         state["w"] = w
+        at_bottom = not view or view[1] >= 0.98
+        first = view[0] if view else 1.0
         rewrap_bubbles(scroll, w)
 
+        def _restore(final: bool = False) -> None:
+            try:
+                bbox = canvas.bbox("all")
+                if bbox:
+                    canvas.configure(scrollregion=bbox)
+                canvas.yview_moveto(1.0 if at_bottom else first)
+            except tk.TclError:
+                pass
+            if final:
+                state["restore"] = []
+
+        for old in state["restore"]:
+            try:
+                win.after_cancel(old)
+            except tk.TclError:
+                pass
+        try:
+            state["restore"] = [
+                win.after(60, _restore),
+                win.after(280, lambda: _restore(True)),
+            ]
+        except tk.TclError:
+            state["restore"] = []
+
     def _on(_e=None) -> None:
+        # Toplevel recebe <Configure> dos filhos também. Só sua largura conta.
+        if _e is not None and getattr(_e, "widget", win) is not win:
+            return
         if state["job"] is not None:
             try:
                 win.after_cancel(state["job"])

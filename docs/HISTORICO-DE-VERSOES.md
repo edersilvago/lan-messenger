@@ -1,6 +1,6 @@
 # Histórico de versões
 
-Versão atual: **v1.33**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.34**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
 
 ## v1.0 / v1.1 — base P2P estilo clássico
 - Descoberta UDP, chat TCP direto, arquivos com sha256, presença, histórico local SQLite, instaladores.
@@ -64,6 +64,12 @@ Versão atual: **v1.33**. Cada versão traz mudanças visíveis ao usuário; o b
 
 ## v1.23 — menus e inbox
 - Menu de botão direito na principal (Atualizar, Novo Grupo, Massa, Ocultar offline); recebidos em `inbox/<Remetente>/`.
+
+## v1.34 — proporção completa e histórico sempre visível
+- Balões de texto passam de 75% com teto de 1200 px para 94% da largura disponível, sem teto fixo; janela maximizada aproveita quase toda a conversa.
+- Citação não depende mais da propagação de tamanho do `CTkFrame` (que mantinha 200 px): altura calculada de 48–80 px para 1–3 linhas, recalculada ao redimensionar.
+- Ao abrir ou maximizar, o canvas recalcula o `scrollregion` em duas fases e restaura o fundo ou a posição anterior. Isso evita a conversa em branco.
+- `<Configure>` ignora eventos dos widgets filhos, reduzindo reprocessamento e instabilidade de layout.
 
 ## v1.33 — correção definitiva da recursão ao abrir conversas
 - Removidas todas as chamadas `update_idletasks()` dos callbacks de centralização e rolagem. Elas podiam reexecutar o próprio `after` ativo antes de a trava anterior entrar.

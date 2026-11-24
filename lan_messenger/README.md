@@ -369,6 +369,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   e 1200 px) e reajuste automático ao redimensionar.
 - v1.33: correção definitiva do `maximum recursion depth exceeded` ao
   abrir ou rolar conversas; centralização e rolagem não recursivas.
+- v1.34: balões usam 94% da conversa sem teto fixo; citação mede 48–80
+  px; abrir/maximizar recalcula a área visível sem deixar tela branca.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 
