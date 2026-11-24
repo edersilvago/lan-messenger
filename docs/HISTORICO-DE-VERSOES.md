@@ -1,6 +1,6 @@
 # Histórico de versões
 
-Versão atual: **v1.32**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.33**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
 
 ## v1.0 / v1.1 — base P2P estilo clássico
 - Descoberta UDP, chat TCP direto, arquivos com sha256, presença, histórico local SQLite, instaladores.
@@ -64,6 +64,12 @@ Versão atual: **v1.32**. Cada versão traz mudanças visíveis ao usuário; o b
 
 ## v1.23 — menus e inbox
 - Menu de botão direito na principal (Atualizar, Novo Grupo, Massa, Ocultar offline); recebidos em `inbox/<Remetente>/`.
+
+## v1.33 — correção definitiva da recursão ao abrir conversas
+- Removidas todas as chamadas `update_idletasks()` dos callbacks de centralização e rolagem. Elas podiam reexecutar o próprio `after` ativo antes de a trava anterior entrar.
+- `center_soon` não usa mais `<Map>` nem `after_idle`: agenda uma única centralização após 80 ms.
+- `scroll_end` agenda uma única rolagem após 60 ms e cancela pedido anterior, evitando centenas de callbacks ao carregar histórico.
+- Teste de regressão garante que `center_window` não chama `update_idletasks`, e que `center_soon` não registra `<Map>`.
 
 ## v1.32 — texto proporcional à janela
 - Quebra do balão calculada pela largura real da janela (75%, entre 300 e 1200 px) em vez dos 380 px fixos: janela pequena acompanha a tela; maximizada usa quase toda a linha.

@@ -11,7 +11,7 @@ TCP_CHAT_PORT = int(os.getenv("LAN_CHAT_PORT", "50001"))
 TCP_FILE_PORT = int(os.getenv("LAN_FILE_PORT", "50002"))
 
 APP_NAME = "LAN Messenger"
-APP_VERSION = "1.32"
+APP_VERSION = "1.33"
 
 
 def app_data_dir() -> Path:

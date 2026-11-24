@@ -246,6 +246,9 @@ com altura/espelho ajustados; correção de travamento ao centralizar
 janelas.
 - v1.32: texto dos balões proporcional à janela (75% da largura, com
 reajuste automático ao redimensionar).
+- v1.33: correção definitiva do erro "maximum recursion depth exceeded"
+ao abrir ou rolar conversas; callbacks Tk não executam mais eventos
+pendentes dentro de outros callbacks.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -373,22 +376,18 @@ def flash_window(widget: tk.Misc) -> bool:
         return False
 
 
-_CENTERING: set[int] = set()  # janelas em centralização (evita recursão)
-
-
 def center_window(win: tk.Misc, parent: tk.Misc | None = None) -> None:
-    """Centraliza a janela no desktop/monitor principal.
+    """Centraliza sem rodar callbacks Tk dentro de outro callback.
 
-    update_idletasks roda os callbacks idle pendentes (after_idle): sem a
-    trava, o _once do <Map> reentra aqui e a pilha estoura (crash v1.30).
+    Nunca use update/update_idletasks aqui: eles podem reexecutar o
+    próprio after em andamento e causar RecursionError.
     """
-    key = id(win)
-    if key in _CENTERING:
-        return
-    _CENTERING.add(key)
     try:
-        win.update_idletasks()
         w, h = win.winfo_width(), win.winfo_height()
+        if w <= 1:
+            w = win.winfo_reqwidth()
+        if h <= 1:
+            h = win.winfo_reqheight()
         x = (win.winfo_screenwidth() - w) // 2
         y = (win.winfo_screenheight() - h) // 2
         win.geometry(f"+{max(0, x)}+{max(0, y)}")
@@ -396,8 +395,6 @@ def center_window(win: tk.Misc, parent: tk.Misc | None = None) -> None:
         pass
     except Exception as e:
         log_crash("center_window", e)
-    finally:
-        _CENTERING.discard(key)
 
 
 def esc_closes(win: tk.Misc, action) -> None:
@@ -456,18 +453,24 @@ def ctk_dialog(parent: tk.Misc, title: str, geom: str,
 
 
 def scroll_end(scroll) -> None:
-    """Rola o CTkScrollableFrame até o fim (após layout + de novo ao exibir)."""
+    """Rola ao fim depois do layout, sem update_idletasks recursivo."""
     def _go() -> None:
         try:
-            scroll.update_idletasks()
+            scroll._scroll_end_job = None
+        except Exception:
+            pass
+        try:
             scroll._parent_canvas.yview_moveto(1.0)
         except (tk.TclError, AttributeError):
             pass
-        except Exception as e:  # frame destruído no meio do after(120)
+        except Exception as e:  # frame destruído no meio do after
             log_crash("scroll_end", e)
-    _go()
+
     try:
-        scroll.after(120, _go)
+        old = getattr(scroll, "_scroll_end_job", None)
+        if old is not None:
+            scroll.after_cancel(old)
+        scroll._scroll_end_job = scroll.after(60, _go)
     except (tk.TclError, AttributeError):
         pass
 
@@ -489,22 +492,13 @@ def center_fixed(win: tk.Misc, geom: str) -> None:
 
 
 def center_soon(win: tk.Misc) -> None:
-    """Centraliza agora e de novo ao mapear (tamanho real pós-layout)."""
-    center_window(win, None)
-
-    def _once(_e=None) -> None:
-        try:
-            win.update_idletasks()
-        except tk.TclError:
-            return
-        except Exception as e:  # janela em estado estranho: não derruba a UI
-            log_crash("center_soon", e)
-            return
-        center_window(win, None)
-
+    """Centraliza uma vez após o layout, sem <Map>/after_idle recursivo."""
     try:
-        win.bind("<Map>", lambda e: win.after_idle(_once), add="+")
-    except tk.TclError:
+        old = getattr(win, "_center_job", None)
+        if old is not None:
+            win.after_cancel(old)
+        win._center_job = win.after(80, lambda: center_window(win, None))
+    except (tk.TclError, AttributeError):
         pass
 
 
@@ -3049,7 +3043,6 @@ class App:
             if not ip:
                 return
             res.configure(text="testando...")
-            win.update_idletasks()
             ok, msg = networks.tcp_ping(ip, config.TCP_CHAT_PORT)
             res.configure(text=f"TCP 50001: {msg}",
                           text_color="green" if ok else "red")

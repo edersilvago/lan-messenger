@@ -205,14 +205,10 @@ def main() -> None:
     assert got == {}, got
     print("OK duplo-clique responde")
 
-    # 8. centralizar não recursa (crash v1.30: update_idletasks x after_idle)
+    # 8. centralizar não roda eventos Tk dentro do callback (crash v1.30/1.32)
     class FakeWin:
-        calls = 0
-
         def update_idletasks(self):
-            FakeWin.calls += 1
-            if FakeWin.calls < 50:
-                app_gui.center_window(self, None)  # reentra como o <Map>
+            raise AssertionError("center_window não pode chamar update_idletasks")
 
         def winfo_width(self):
             return 100
@@ -231,9 +227,30 @@ def main() -> None:
 
     fw = FakeWin()
     app_gui.center_window(fw, None)
-    assert FakeWin.calls == 1, FakeWin.calls  # trava: só a 1ª chamada entra
     assert fw.g.startswith("+"), fw.g
-    print("OK center_window sem recursao")
+    print("OK center_window sem update recursivo")
+
+    # center_soon agenda uma vez; não usa <Map> nem after_idle
+    class SoonWin(FakeWin):
+        def __init__(self):
+            self.jobs = []
+
+        def after(self, ms, callback):
+            self.jobs.append((ms, callback))
+            return "job-1"
+
+        def after_cancel(self, job):
+            self.cancelled = job
+
+        def bind(self, *args, **kwargs):
+            raise AssertionError("center_soon não pode ligar <Map>")
+
+    sw = SoonWin()
+    app_gui.center_soon(sw)
+    assert len(sw.jobs) == 1 and sw.jobs[0][0] == 80, sw.jobs
+    sw.jobs[0][1]()
+    assert sw.g.startswith("+"), sw.g
+    print("OK center_soon agenda uma vez")
 
     print("TESTE REPLY: PASSOU")
 
