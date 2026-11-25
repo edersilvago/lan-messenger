@@ -3837,11 +3837,28 @@ class App:
         ctk.CTkLabel(win, text="Eder Silva").pack()
         ctk.CTkLabel(win, text="+55 (62) 98406-8103").pack()
 
+        # -- seção de atualização (estilo Firefox: Sobre com atualizar) ------
+        upd_frame = ctk.CTkFrame(win, fg_color="transparent")
+        upd_frame.pack(fill="x", padx=12, pady=(8, 0))
+        self._upd_status = ctk.CTkLabel(
+            upd_frame, text="Verificando atualizações…",
+            text_color="gray", anchor="w")
+        self._upd_status.pack(side="left", fill="x", expand=True)
+        self._upd_btn = ctk.CTkButton(
+            upd_frame, text="Atualizar agora", width=110,
+            command=self._do_update)
+        self._upd_btn.pack_forget()  # só exibe se houver versão nova
+        self._upd_info = {"version": None, "url": None}
+
+        threading.Thread(target=self._check_about_update, daemon=True,
+                         name="about-update").start()
+
         def _open(url: str) -> None:
             try:
                 os.startfile(url)  # type: ignore[attr-defined]
             except OSError:
                 pass
+
         mail = ctk.CTkLabel(win, text="eder.gyn@gmail.com", text_color="blue",
                             cursor="hand2")
         mail.pack()
@@ -3862,6 +3879,85 @@ class App:
                       command=lambda: self.help_dialog(win)).pack(side="left", padx=4)
         ctk.CTkButton(bot, text="OK", width=90,
                       command=win.destroy).pack(side="left", padx=4)
+
+    def _check_about_update(self) -> None:
+        """Consulta o GitHub e atualiza o rótulo/botão da tela Sobre."""
+        res = updates.check_latest(config.APP_VERSION)
+
+        def _apply() -> None:
+            if res is None:
+                self._upd_status.configure(
+                    text=f"Versão {config.APP_VERSION} (atualizada).",
+                    text_color=("gray40", "gray60"))
+                self._upd_btn.pack_forget()
+            else:
+                ver, url = res
+                self._upd_info = {"version": ver, "url": url}
+                self._upd_status.configure(
+                    text=f"Nova versão {ver} disponível.",
+                    text_color=("black", "white"))
+                self._upd_status.pack(side="left", fill="x", expand=True)
+                self._upd_btn.pack(side="right", padx=4)
+
+        try:
+            self.root.after(0, _apply)
+        except tk.TclError:
+            pass
+
+    def _installer_url(self, version: str) -> str:
+        """URL direta do instalador correto para a família do Windows."""
+        import sys
+        try:
+            major = sys.getwindowsversion().major
+        except Exception:
+            major = 10
+        fam = "win10_11" if major >= 10 else "win7_81"
+        return (f"{GITHUB_URL}/releases/download/v{version}/"
+                f"Setup_LANMessenger_{fam}_v{version}.exe")
+
+    def _do_update(self) -> None:
+        """Baixa o instalador e roda a instalação silenciosa (Inno Setup /VERYSILENT)."""
+        info = self._upd_info
+        ver = info.get("version")
+        url = info.get("url")
+        if not ver or not url:
+            return
+        self._upd_btn.configure(state="disabled", text="Baixando…")
+        self._upd_status.configure(text="Baixando instalador…")
+
+        def _run() -> None:
+            try:
+                import urllib.request, tempfile, subprocess
+                inst = self._installer_url(ver)
+                fd, path = tempfile.mkstemp(suffix=".exe",
+                                            prefix=f"lan-update-v{ver}-")
+                os.close(fd)
+                try:
+                    urllib.request.urlretrieve(inst, path)
+                    self.root.after(0, lambda: self._upd_status.configure(
+                        text="Instalando (silencioso)…"))
+                    # Inno Setup: /VERYSILENT não mostra nada;
+                    # CloseApplications=yes fecha cópias abertas antes de instalar.
+                    subprocess.run([path, "/VERYSILENT"], check=False)
+                finally:
+                    try:
+                        os.remove(path)
+                    except OSError:
+                        pass
+            except Exception as e:  # noqa: BLE001
+                self.root.after(0, lambda: self._upd_status.configure(
+                    text=f"Falha ao atualizar: {e}",
+                    text_color=("red", "red")))
+                self.root.after(0, lambda: self._upd_btn.configure(
+                    state="normal", text="Atualizar agora"))
+            else:
+                self.root.after(0, lambda: self._upd_status.configure(
+                    text="Instalação iniciada. O aplicativo será fechado.",
+                    text_color=("gray40", "gray60")))
+                self.root.after(0, self.root.destroy)
+
+        threading.Thread(target=_run, daemon=True,
+                         name="update-install").start()
 
     def help_dialog(self, parent) -> None:
         """Ajuda completa (guia de uso e funcionalidades)."""
