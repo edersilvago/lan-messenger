@@ -383,6 +383,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   texto viram emoji após envio (sem alterar URLs).
 - v1.40: Ajuda mostra indicador de nova versão; grupos podem ser
   exportados/importados em JSON; clique no grupo seleciona para F2.
+- v1.41: Sobre com atualização — verifica nova versão, baixa e instala
+  silenciosamente (estilo Firefox).
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

@@ -1,6 +1,6 @@
 # Histórico de versões
 
-Versão atual: **v1.40**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.41**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
 
 ## v1.0 / v1.1 — base P2P estilo clássico
 - Descoberta UDP, chat TCP direto, arquivos com sha256, presença, histórico local SQLite, instaladores.
@@ -64,6 +64,14 @@ Versão atual: **v1.40**. Cada versão traz mudanças visíveis ao usuário; o b
 
 ## v1.23 — menus e inbox
 - Menu de botão direito na principal (Atualizar, Novo Grupo, Massa, Ocultar offline); recebidos em `inbox/<Remetente>/`.
+
+## v1.41 — Sobre com atualização (estilo Firefox)
+- Tela Sobre consulta o GitHub silenciosamente ao abrir.
+- Sem novidade: mostra "Versão 1.41 (atualizada)."
+- Com versão nova: mostra "Nova versão X disponível" + botão "Atualizar agora".
+- Clicar em Atualizar baixa o instalador correto (win10_11/win7_81) e roda
+  com /VERYSILENT (instalação silenciosa; fecha cópias abertas antes de instalar).
+- Backend P2P inalterado.
 
 ## v1.40 — ajuda, grupos e organização
 - Tela de Ajuda mostra indicador quando há nova versão disponível, com botão para baixar.

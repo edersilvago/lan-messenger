@@ -278,7 +278,9 @@ notificação nova mensagem traz a conversa para frente e foca digitação.
 - v1.39: quebra automática de palavras longas nos balões; atalhos de
 texto viram emoji após envio (sem alterar URLs).
 - v1.40: Ajuda indica nova versão; grupos exportam/importam em JSON;
-clique no grupo seleciona e F2 renomeia.
+  clique no grupo seleciona e F2 renomeia.
+- v1.41: Sobre com atualização — verifica nova versão, baixa e instala
+  silenciosamente (estilo Firefox).
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
