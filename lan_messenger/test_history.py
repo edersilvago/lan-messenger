@@ -42,6 +42,17 @@ def main() -> None:
     assert len(dedup) == 1 and dedup[0][2] == "original", dedup
     print("OK mensagem recebida é idempotente por id")
 
+    # Janela de conversa mostra somente mensagens do dia atual.
+    s.add_message("today-1", "10.0.0.7", "in", "mensagem de hoje")
+    s.add_message("old-1", "10.0.0.7", "out", "mensagem antiga")
+    s._conn.execute(
+        "UPDATE messages SET ts=ts-172800 WHERE id='old-1'")
+    s._conn.commit()
+    today = s.messages_today_with_ids("10.0.0.7")
+    assert [row[0] for row in today] == ["today-1"], today
+    assert len(s.messages_with_ids("10.0.0.7")) == 2
+    print("OK conversa limita exibição ao dia atual sem apagar histórico")
+
     print("TESTE HISTORY: PASSOU")
 
 

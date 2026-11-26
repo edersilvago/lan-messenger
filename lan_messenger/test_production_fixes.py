@@ -54,11 +54,11 @@ def main() -> None:
         def incoming(self, *args, **kwargs):
             self.calls.append((args, kwargs))
 
-    def make_app(inserted: bool):
+    def make_app(inserted: bool, behavior: str = "foreground"):
         app = SimpleNamespace()
         app.store = Store(inserted)
         app.settings = SimpleNamespace(
-            incoming_behavior="foreground", log_enabled=False,
+            incoming_behavior=behavior, log_enabled=False,
             snd_msg_mode="background", snd_repeat=False,
             sounds_enabled=False)
         app.chat_windows = {}
@@ -84,6 +84,28 @@ def main() -> None:
     calls = fresh.chat_windows["10.0.0.2"].calls
     assert len(calls) == 1 and calls[0][1]["append_history"] is False, calls
     print("OK reentrega e primeira abertura não duplicam mensagem")
+
+    minimized = make_app(True, behavior="minimize")
+    app_gui.App._on_msg(minimized, {"id": "m3", "text": "abre"}, "10.0.0.3")
+    assert "10.0.0.3" in minimized.chat_windows
+    assert len(minimized.chat_windows["10.0.0.3"].calls) == 1
+    print("OK mensagem sempre abre conversa, inclusive com preferência antiga")
+
+    activated = []
+    flashed = []
+    real_flash = app_gui.flash_window
+    announce = SimpleNamespace()
+    announce.app = SimpleNamespace(
+        _activate_chat_window=lambda chat: activated.append(chat))
+    announce.win = object()
+    announce.focused = False
+    app_gui.flash_window = lambda win: flashed.append(win) or True
+    try:
+        app_gui.ChatWindow._announce(announce)
+    finally:
+        app_gui.flash_window = real_flash
+    assert activated == [announce] and flashed == [announce.win]
+    print("OK mensagem traz conversa à frente e pisca na barra")
 
     print("TESTE PRODUCTION FIXES: PASSOU")
 
