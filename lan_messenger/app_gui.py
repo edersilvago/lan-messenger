@@ -423,10 +423,39 @@ def flash_window(widget: tk.Misc) -> bool:
         return False
 
 
-def update_installer_args(path: str) -> list[str]:
-    """Argumentos para instalador separado, silencioso e autolimpável."""
-    return [path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART",
-            "/DELETEAFTERINSTALL"]
+def _batch_path(path: str) -> str:
+    """Protege caminho usado em arquivo .cmd."""
+    return f'"{path.replace("%", "%%")}"'
+
+
+def update_helper_script(installer_path: str, app_path: str) -> str:
+    """Script externo: encerra, instala, reabre e limpa temporários."""
+    installer = _batch_path(installer_path)
+    app = _batch_path(app_path)
+    return "\r\n".join([
+        "@echo off",
+        "setlocal",
+        "timeout /t 2 /nobreak >nul",
+        "taskkill /F /IM LANMessenger.exe >nul 2>&1",
+        "timeout /t 1 /nobreak >nul",
+        f'start /wait "" {installer} /VERYSILENT /SUPPRESSMSGBOXES /NORESTART',
+        'set "INSTALL_EXIT=%ERRORLEVEL%"',
+        'if not "%INSTALL_EXIT%"=="0" goto cleanup',
+        "timeout /t 2 /nobreak >nul",
+        'tasklist /FI "IMAGENAME eq LANMessenger.exe" 2>nul | '
+        'find /I "LANMessenger.exe" >nul',
+        f'if errorlevel 1 start "" {app}',
+        ":cleanup",
+        f"del /F /Q {installer} >nul 2>&1",
+        'del /F /Q "%~f0" >nul 2>&1',
+        "exit /b %INSTALL_EXIT%",
+        "",
+    ])
+
+
+def update_helper_args(path: str) -> list[str]:
+    """Comando do auxiliar externo, sem depender do processo do aplicativo."""
+    return [os.environ.get("ComSpec", "cmd.exe"), "/d", "/c", path]
 
 
 def center_window(win: tk.Misc, parent: tk.Misc | None = None) -> None:
@@ -4160,13 +4189,22 @@ class App:
 
         def _run() -> None:
             path = ""
+            helper_path = ""
             try:
-                import urllib.request, tempfile, subprocess
+                import subprocess, sys, tempfile, urllib.request
                 inst = self._installer_url(ver)
                 fd, path = tempfile.mkstemp(suffix=".exe",
                                             prefix=f"lan-update-v{ver}-")
                 os.close(fd)
                 urllib.request.urlretrieve(inst, path)
+                fd, helper_path = tempfile.mkstemp(
+                    suffix=".cmd", prefix=f"lan-update-v{ver}-")
+                os.close(fd)
+                app_path = (sys.executable if getattr(sys, "frozen", False)
+                            else os.path.abspath(sys.argv[0]))
+                with open(helper_path, "w", encoding="mbcs",
+                          newline="") as helper:
+                    helper.write(update_helper_script(path, app_path))
                 def _installing() -> None:
                     try:
                         if status is not None:
@@ -4176,12 +4214,17 @@ class App:
                     except tk.TclError:
                         pass
                 self.root.after(0, _installing)
-                # Processo separado continua depois do encerramento gracioso.
-                subprocess.Popen(update_installer_args(path), close_fds=True)
+                flags = (getattr(subprocess, "CREATE_NO_WINDOW", 0)
+                         | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
+                subprocess.Popen(
+                    update_helper_args(helper_path), close_fds=True,
+                    creationflags=flags)
             except Exception as e:  # noqa: BLE001
-                if path:
+                for temporary in (helper_path, path):
+                    if not temporary:
+                        continue
                     try:
-                        os.remove(path)
+                        os.remove(temporary)
                     except OSError:
                         pass
                 error = str(e)
@@ -4217,8 +4260,9 @@ class App:
             bar.pack(fill="x", padx=8, pady=(8, 0))
             ctk.CTkLabel(bar, text=f"Nova versão {ver} disponível.",
                          anchor="w").pack(side="left", padx=8, pady=6)
-            ctk.CTkButton(bar, text="Baixar", width=90,
-                          command=lambda u=url: open_url(u)).pack(
+            ctk.CTkButton(bar, text="Atualizar agora", width=110,
+                          command=lambda v=ver, u=url:
+                          self._start_update(v, u)).pack(
                               side="right", padx=8, pady=6)
         txt = ctk.CTkTextbox(win, wrap="word")
         txt.pack(fill="both", expand=True, padx=8, pady=8)
