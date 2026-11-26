@@ -1,6 +1,17 @@
 # Histórico de versões
 
-Versão atual: **v1.44**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.45**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+
+## v1.45 — conversa visível e histórico diário
+- Mensagens 1-1 sempre criam ou restauram a janela de conversa.
+- A conversa é centralizada no monitor da janela principal e pisca na barra
+  de tarefas quando não está focada. O toast continua disponível.
+- A chamada de ativação da conversa foi corrigida para usar o objeto `App`.
+- A janela mostra somente mensagens do dia local atual.
+- Mensagens anteriores continuam preservadas no SQLite e disponíveis no
+  Visualizador do Histórico e na busca.
+- Índice SQLite por contato e data acelera a consulta sem migrar dados.
+- Protocolo P2P, transferências e regras de negócio permanecem inalterados.
 
 ## v1.44 — estabilidade com muitos usuários
 - A lista principal não é mais destruída e recriada quando apenas presença,

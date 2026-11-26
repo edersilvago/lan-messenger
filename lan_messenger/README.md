@@ -391,6 +391,9 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
 - v1.44: lista atualiza sem piscar; histórico mostra as mensagens mais
   recentes e ignora reentregas duplicadas; conversas abrem mais rápido,
   com renderização em lotes e centralização no monitor ativo.
+- v1.45: mensagem recebida sempre abre a conversa e pisca na barra;
+  a janela mostra somente mensagens do dia atual, mantendo dias anteriores
+  disponíveis no Histórico.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 
