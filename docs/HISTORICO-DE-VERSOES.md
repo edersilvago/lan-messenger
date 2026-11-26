@@ -1,6 +1,16 @@
 # Histórico de versões
 
-Versão atual: **v1.43**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.44**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+
+## v1.44 — estabilidade com muitos usuários
+- A lista principal não é mais destruída e recriada quando apenas presença,
+  cor ou seleção muda. Isso elimina o piscar contínuo com muitos usuários.
+- A conversa carrega as 100 mensagens mais recentes em ordem cronológica.
+- Reentregas do mesmo ID são ignoradas e a primeira mensagem que abre uma
+  conversa não é adicionada duas vezes.
+- O histórico visual é renderizado em lotes para a janela aparecer rápido.
+- Novas conversas centralizam no monitor onde está a janela principal.
+- Banco SQLite, protocolo P2P e regras de negócio permanecem compatíveis.
 
 ## v1.0 / v1.1 — base P2P estilo clássico
 - Descoberta UDP, chat TCP direto, arquivos com sha256, presença, histórico local SQLite, instaladores.
@@ -69,7 +79,7 @@ Versão atual: **v1.43**. Cada versão traz mudanças visíveis ao usuário; o b
 ## v1.43 — reabrir após atualização
 - Ao atualizar (tela Sobre), o instalador reabre o LAN Messenger ao terminar
   a instalação silenciosa (removido `skipifsilent` do `[Run]` do Inno Setup).
-- Janela antiga � fechada com segurança após a instalação.
+- Janela antiga é fechada com segurança após a instalação.
 - Backend P2P inalterado.
 ## v1.42 — exportar/importar grupos com contatos
 - Exportar grupos e contatos agora também salva os dados dos contatos

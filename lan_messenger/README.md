@@ -388,6 +388,9 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
 - v1.42: exportar/importar grupos também salva os dados dos contatos
   (nome, departamento, cargo, IDs, hardware) para organizar ao importar.
 - v1.43: após atualização silenciosa, o instalador reabre o LAN Messenger.
+- v1.44: lista atualiza sem piscar; histórico mostra as mensagens mais
+  recentes e ignora reentregas duplicadas; conversas abrem mais rápido,
+  com renderização em lotes e centralização no monitor ativo.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

@@ -284,6 +284,8 @@ texto viram emoji após envio (sem alterar URLs).
 - v1.42: exportar/importar grupos também salva os dados dos contatos
   (nome, departamento, cargo, IDs, hardware) para organizar ao importar.
 - v1.43: após atualização silenciosa, o instalador reabre o LAN Messenger.
+- v1.44: lista atualiza sem piscar; histórico recente não some nem duplica;
+  conversa abre mais rápido e centralizada no monitor da janela principal.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
