@@ -22,6 +22,26 @@ def main() -> None:
     assert len(r2) == 2, r2
     assert s.search_messages("zzz-nada") == []
     print("OK list_peers + messages_with + search_messages")
+
+    # Conversa deve carregar as mensagens mais recentes, em ordem cronológica.
+    for i in range(120):
+        s.add_message(f"bulk-{i:03}", "10.0.0.9", "in", f"texto {i:03}")
+    latest = s.messages_with_ids("10.0.0.9", limit=10)
+    assert [row[0] for row in latest] == [
+        f"bulk-{i:03}" for i in range(110, 120)
+    ], latest
+    assert [row[1] for row in s.messages_with("10.0.0.9", limit=3)] == [
+        "texto 117", "texto 118", "texto 119"
+    ]
+    print("OK histórico recente não some após ultrapassar o limite")
+
+    # Reentrega TCP do mesmo id não pode duplicar nem alterar a mensagem.
+    assert s.add_message_once("dedup-1", "10.0.0.8", "in", "original") is True
+    assert s.add_message_once("dedup-1", "10.0.0.8", "in", "duplicada") is False
+    dedup = s.messages_with_ids("10.0.0.8")
+    assert len(dedup) == 1 and dedup[0][2] == "original", dedup
+    print("OK mensagem recebida é idempotente por id")
+
     print("TESTE HISTORY: PASSOU")
 
 
