@@ -1,6 +1,19 @@
 # Histórico de versões
 
-Versão atual: **v1.47**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.48**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+
+## v1.48 — atualizador coordenado
+- Após baixar o instalador, o aplicativo cria um auxiliar `.cmd` externo.
+- O auxiliar espera o encerramento gracioso e executa
+  `taskkill /F /IM LANMessenger.exe` para eliminar processo residual.
+- Em seguida, executa o instalador correto silenciosamente e aguarda o fim.
+- Se o instalador não reabrir o LAN Messenger, o auxiliar inicia o
+  executável instalado.
+- Instalador e auxiliar temporários são removidos no final.
+- Aviso inicial, tela Sobre e tela Ajuda usam o mesmo fluxo.
+- O botão da Ajuda agora é “Atualizar agora” e não abre a página web.
+- Protocolo P2P, SQLite, transferências e regras de negócio permanecem
+  inalterados.
 
 ## v1.47 — atualização sem bloqueio e alerta persistente
 - O instalador é iniciado em processo separado após o download.

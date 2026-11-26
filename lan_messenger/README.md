@@ -400,6 +400,9 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
 - v1.47: atualização inicia em processo separado e encerra o app antes de
   trocar arquivos; o instalador força processos residuais sem diálogo;
   alerta da conversa pisca continuamente até receber foco.
+- v1.48: auxiliar externo executa a sequência completa de atualização:
+  encerra `LANMessenger.exe`, instala, reabre e limpa temporários; Ajuda,
+  Sobre e aviso inicial usam o mesmo fluxo.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

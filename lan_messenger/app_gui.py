@@ -292,6 +292,8 @@ texto viram emoji após envio (sem alterar URLs).
   nova versão inicia download e instalação sem abrir a página de Releases.
 - v1.47: atualizador encerra o app antes da instalação e elimina processos
   residuais; botão da conversa pisca continuamente até receber foco.
+- v1.48: auxiliar externo encerra o processo, instala, reabre e limpa os
+  temporários; aviso inicial, Sobre e Ajuda usam o mesmo fluxo.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
