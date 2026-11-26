@@ -288,6 +288,8 @@ texto viram emoji após envio (sem alterar URLs).
   conversa abre mais rápido e centralizada no monitor da janela principal.
 - v1.45: mensagem recebida sempre abre a conversa e pisca na barra;
   conversa mostra somente mensagens do dia atual (restante no Histórico).
+- v1.46: opção de foco somente pisca a conversa na barra; confirmação de
+  nova versão inicia download e instalação sem abrir a página de Releases.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:

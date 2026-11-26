@@ -36,6 +36,8 @@ Compatível com Windows 7 SP1 / 8 / 8.1 / 10 / 11 (64 bits), com instaladores de
 - **Conversas mais rápidas**: histórico renderiza em lotes e a janela abre centralizada no monitor da janela principal (v1.44).
 - **Mensagem recebida visível**: a conversa sempre abre no centro do monitor e pisca na barra de tarefas, além do toast (v1.45).
 - **Histórico diário na conversa**: a janela mostra somente mensagens do dia atual; dias anteriores permanecem no Histórico (v1.45).
+- **Modo foco**: escolha “Somente piscar na barra de tarefas” para receber mensagens sem abrir conversa ou toast (v1.46).
+- **Atualização direta**: o aviso de nova versão pergunta se deseja atualizar e inicia a instalação após confirmação (v1.46).
 - **Mensagem para contato offline**: a mensagem fica na fila local e sai sozinha quando o colega aparece online (marca `(pendente)` vira tique) - o remetente precisa estar com o app aberto (v1.29).
 - **Log de erros**: falhas internas vão para `%APPDATA%\LANMessenger\logs\crash.log` com data, hora e traceback; aviso no rodapé e botão para abrir a pasta (v1.28).
 - **Instaladores versionados**: Inno Setup gera `Setup_LANMessenger_win10_11_vX.Y.exe` e `Setup_LANMessenger_win7_81_vX.Y.exe` com firewall e desinstalação completos.

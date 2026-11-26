@@ -394,6 +394,9 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
 - v1.45: mensagem recebida sempre abre a conversa e pisca na barra;
   a janela mostra somente mensagens do dia atual, mantendo dias anteriores
   disponíveis no Histórico.
+- v1.46: opção de foco cria a conversa minimizada e somente pisca na barra;
+  o aviso de nova versão instala diretamente após confirmação, sem abrir
+  a página de Releases.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

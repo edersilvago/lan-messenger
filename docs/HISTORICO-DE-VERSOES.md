@@ -1,6 +1,19 @@
 # Histórico de versões
 
-Versão atual: **v1.45**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.46**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+
+## v1.46 — modo foco e atualização direta
+- Configurações > Mensagens oferece “Somente piscar na barra de tarefas”.
+- Nesse modo, mensagens 1-1 criam a conversa minimizada quando necessário.
+- Conversas existentes não são restauradas e nenhum toast é exibido.
+- A barra de tarefas pisca sem roubar foco; sons continuam conforme as
+  preferências independentes da tela Eventos de Som.
+- “Mostrar conversa em primeiro plano” preserva o comportamento da v1.45.
+- O aviso de nova versão pergunta “Quer atualizar a sua versão agora?”.
+- Ao confirmar, o aplicativo baixa o instalador correto e inicia a
+  atualização silenciosa, sem abrir a página de Releases.
+- Protocolo P2P, SQLite, transferências e regras de negócio permanecem
+  inalterados.
 
 ## v1.45 — conversa visível e histórico diário
 - Mensagens 1-1 sempre criam ou restauram a janela de conversa.
