@@ -430,25 +430,30 @@ def _batch_path(path: str) -> str:
     return f'"{path.replace("%", "%%")}"'
 
 
-def update_helper_script(installer_path: str, app_path: str) -> str:
-    """Script externo: encerra, instala, reabre e limpa temporários."""
+def update_helper_script(installer_path: str, app_path: str,
+                         ready_path: str) -> str:
+    """Script externo: confirma início, encerra, instala e reabre."""
     installer = _batch_path(installer_path)
     app = _batch_path(app_path)
+    ready = _batch_path(ready_path)
+    log = _batch_path(installer_path + ".log")
     return "\r\n".join([
         "@echo off",
         "setlocal",
+        f"> {ready} echo ready",
         "timeout /t 2 /nobreak >nul",
         "taskkill /F /IM LANMessenger.exe >nul 2>&1",
         "timeout /t 1 /nobreak >nul",
-        f'start /wait "" {installer} /VERYSILENT /SUPPRESSMSGBOXES /NORESTART',
+        f'start /wait "" {installer} /SILENT /SUPPRESSMSGBOXES /NORESTART '
+        f"/LOG={log}",
         'set "INSTALL_EXIT=%ERRORLEVEL%"',
-        'if not "%INSTALL_EXIT%"=="0" goto cleanup',
         "timeout /t 2 /nobreak >nul",
         'tasklist /FI "IMAGENAME eq LANMessenger.exe" 2>nul | '
         'find /I "LANMessenger.exe" >nul',
         f'if errorlevel 1 start "" {app}',
-        ":cleanup",
-        f"del /F /Q {installer} >nul 2>&1",
+        f'if "%INSTALL_EXIT%"=="0" del /F /Q {installer} >nul 2>&1',
+        f'if "%INSTALL_EXIT%"=="0" del /F /Q {log} >nul 2>&1',
+        f"del /F /Q {ready} >nul 2>&1",
         'del /F /Q "%~f0" >nul 2>&1',
         "exit /b %INSTALL_EXIT%",
         "",
@@ -4192,6 +4197,7 @@ class App:
         def _run() -> None:
             path = ""
             helper_path = ""
+            ready_path = ""
             try:
                 import subprocess, sys, tempfile, urllib.request
                 inst = self._installer_url(ver)
@@ -4202,17 +4208,19 @@ class App:
                 fd, helper_path = tempfile.mkstemp(
                     suffix=".cmd", prefix=f"lan-update-v{ver}-")
                 os.close(fd)
+                ready_path = helper_path + ".ready"
                 app_path = (sys.executable if getattr(sys, "frozen", False)
                             else os.path.abspath(sys.argv[0]))
                 with open(helper_path, "w", encoding="mbcs",
                           newline="") as helper:
-                    helper.write(update_helper_script(path, app_path))
+                    helper.write(update_helper_script(
+                        path, app_path, ready_path))
                 def _installing() -> None:
                     try:
                         if status is not None:
-                            status.configure(text="Instalando (silencioso)…")
+                            status.configure(text="Abrindo instalador…")
                         self.statusbar.configure(
-                            text="Encerrando para instalar atualização…")
+                            text="Preparando atualização visível…")
                     except tk.TclError:
                         pass
                 self.root.after(0, _installing)
@@ -4221,8 +4229,15 @@ class App:
                 subprocess.Popen(
                     update_helper_args(helper_path), close_fds=True,
                     creationflags=flags)
+                for _attempt in range(50):
+                    if os.path.exists(ready_path):
+                        break
+                    time.sleep(0.1)
+                else:
+                    raise RuntimeError(
+                        "O auxiliar de atualização não conseguiu iniciar.")
             except Exception as e:  # noqa: BLE001
-                for temporary in (helper_path, path):
+                for temporary in (ready_path, helper_path, path):
                     if not temporary:
                         continue
                     try:

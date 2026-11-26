@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -100,9 +102,20 @@ def main() -> None:
     print("OK auxiliar encerra, instala, reabre e limpa")
 
     args = app_gui.update_helper_args(r"C:\Temp\lan-update.cmd")
-    assert args[-4:] == [
-        "/d", "/s", "/c", '""C:\\Temp\\lan-update.cmd""'], args
+    assert args[-3:] == ["/d", "/c", r"C:\Temp\lan-update.cmd"], args
     print("OK auxiliar inicia separado do LAN Messenger")
+
+    with tempfile.TemporaryDirectory(prefix="lan update ") as tmp:
+        marker = Path(tmp) / "started.txt"
+        helper = Path(tmp) / "update helper.cmd"
+        helper.write_text(
+            f'@echo off\r\n> "{marker}" echo started\r\n',
+            encoding="mbcs")
+        result = subprocess.run(
+            app_gui.update_helper_args(str(helper)),
+            timeout=10, check=False)
+        assert result.returncode == 0 and marker.is_file(), result.returncode
+    print("OK auxiliar executa quando caminho contém espaços")
 
     base = Path(__file__).parent
     for name in ("installer_win10_11.iss", "installer_win7_81.iss"):
