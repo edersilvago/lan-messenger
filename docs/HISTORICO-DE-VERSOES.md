@@ -1,6 +1,19 @@
 # Histórico de versões
 
-Versão atual: **v1.46**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.47**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+
+## v1.47 — atualização sem bloqueio e alerta persistente
+- O instalador é iniciado em processo separado após o download.
+- O LAN Messenger encerra serviços, bandeja, descoberta e trava de
+  instância antes da substituição dos arquivos.
+- O instalador não usa o diálogo do Restart Manager.
+- `PrepareToInstall` encerra toda a árvore residual de `LANMessenger.exe`
+  antes de copiar arquivos.
+- O instalador temporário se remove após concluir.
+- O alerta usa o identificador da janela raiz do Windows.
+- No modo foco, o botão da conversa pisca até a janela receber foco.
+- Protocolo P2P, SQLite, transferências e regras de negócio permanecem
+  inalterados.
 
 ## v1.46 — modo foco e atualização direta
 - Configurações > Mensagens oferece “Somente piscar na barra de tarefas”.

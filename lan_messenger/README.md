@@ -397,6 +397,9 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
 - v1.46: opção de foco cria a conversa minimizada e somente pisca na barra;
   o aviso de nova versão instala diretamente após confirmação, sem abrir
   a página de Releases.
+- v1.47: atualização inicia em processo separado e encerra o app antes de
+  trocar arquivos; o instalador força processos residuais sem diálogo;
+  alerta da conversa pisca continuamente até receber foco.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

@@ -290,6 +290,8 @@ texto viram emoji após envio (sem alterar URLs).
   conversa mostra somente mensagens do dia atual (restante no Histórico).
 - v1.46: opção de foco somente pisca a conversa na barra; confirmação de
   nova versão inicia download e instalação sem abrir a página de Releases.
+- v1.47: atualizador encerra o app antes da instalação e elimina processos
+  residuais; botão da conversa pisca continuamente até receber foco.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
