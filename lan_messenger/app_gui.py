@@ -1127,7 +1127,8 @@ def file_history_text(which: str, name: str, size_bytes: float) -> str:
 class ChatWindow:
     """Janela de conversa 1-1 em CustomTkinter (backend inalterado)."""
 
-    def __init__(self, app: "App", ip: str, info: dict):
+    def __init__(self, app: "App", ip: str, info: dict,
+                 start_minimized: bool = False):
         self.app = app
         self.ip = ip
         self.win = ctk.CTkToplevel(app.root)
@@ -1229,8 +1230,14 @@ class ChatWindow:
         self._enable_drop()
         self.win.protocol("WM_DELETE_WINDOW", self._on_close)
         esc_closes(self.win, self._on_close)
-        self.entry.focus_set()
+        if not start_minimized:
+            self.entry.focus_set()
         self.update_status_line(info)
+        if start_minimized:
+            try:
+                self.win.iconify()
+            except tk.TclError:
+                pass
         scroll_end(self.scroll)
 
     def _chat_toolbar_button(self, parent, text: str, tip: str, icon: str, cmd) -> None:
@@ -1444,7 +1451,8 @@ class ChatWindow:
 
     def incoming(self, text: str, info: dict, mid: str = "",
                  reply: dict | None = None,
-                 append_history: bool = True) -> None:
+                 append_history: bool = True,
+                 announce: bool = True) -> None:
         self._refresh_title(info)
         s = self.app.settings
         ts = time.strftime("%d/%m/%Y - %H:%M:%S")  # sempre: identifica a hora
@@ -1454,8 +1462,9 @@ class ChatWindow:
             else:
                 self._dated("in", text, ts, mid=mid, reply=reply)
         self.update_status_line(info)
-        self.win.after(0, self._announce)
-        self.win.after(0, self._focus_entry)
+        if announce:
+            self.win.after(0, self._announce)
+            self.win.after(0, self._focus_entry)
 
     def _focus_entry(self) -> None:
         """Foco no campo de texto (nunca derruba se a janela fechou)."""
@@ -1978,7 +1987,7 @@ class App:
             self._ui_call(self._offer_update, *result)
 
     def _offer_update(self, version: str, url: str) -> None:
-        """Avisa e leva o usuário à página oficial de Releases."""
+        """Oferece baixar e instalar a nova versão diretamente."""
         self._update_available = (version, url)
         try:
             self.statusbar.configure(
@@ -1986,12 +1995,12 @@ class App:
             open_now = messagebox.askyesno(
                 "Nova versão disponível",
                 f"A versão {version} do LAN Messenger está disponível.\n\n"
-                "Deseja abrir a página de Releases para baixar?",
+                "Quer atualizar a sua versão agora?",
                 parent=self.root)
         except tk.TclError:
             return
         if open_now:
-            open_url(url)
+            self._start_update(version, url)
 
     # -- fila de saída: mensagem para contato offline (v1.29) ------------
     def queue_outgoing(self, ip: str, text: str,
@@ -3001,13 +3010,23 @@ class App:
         if ip:
             self.open_chat(ip)
 
-    def open_chat(self, ip: str) -> None:
+    def open_chat(self, ip: str, minimized: bool = False) -> None:
         w = self.chat_windows.get(ip)
         if w and w.win.winfo_exists():
-            self._activate_chat_window(w)
+            if not minimized:
+                self._activate_chat_window(w)
             return
-        self.chat_windows[ip] = ChatWindow(self, ip, self.selected_info(ip))
-        self._activate_chat_window(self.chat_windows[ip])
+        self.chat_windows[ip] = ChatWindow(
+            self, ip, self.selected_info(ip), start_minimized=minimized)
+        if not minimized:
+            self._activate_chat_window(self.chat_windows[ip])
+
+    def _flash_chat_window(self, w) -> None:
+        """Pisca conversa na barra sem restaurar nem roubar foco."""
+        try:
+            w.win.after(80, lambda: flash_window(w.win))
+        except tk.TclError:
+            pass
 
     def _activate_chat_window(self, w) -> None:
         """Traz a conversa para frente e foca o campo de digitação."""
@@ -3118,15 +3137,20 @@ class App:
                 sfx.play(self.settings, "broadcast")
             return
         w = self.chat_windows.get(ip)
+        focus_mode = self.settings.incoming_behavior == "minimize"
         if w and w.win.winfo_exists():
-            w.incoming(text, self.selected_info(ip), mid=mid, reply=reply)
+            w.incoming(text, self.selected_info(ip), mid=mid, reply=reply,
+                       announce=not focus_mode)
         else:
-            self.open_chat(ip)
+            self.open_chat(ip, minimized=focus_mode)
             self.chat_windows[ip].incoming(text, self.selected_info(ip),
                                            mid=mid, reply=reply,
-                                           append_history=False)
+                                           append_history=False,
+                                           announce=not focus_mode)
+        if focus_mode:
+            self._flash_chat_window(self.chat_windows[ip])
         self.touch()
-        if self._in_tray and self.tray is not None:
+        if not focus_mode and self._in_tray and self.tray is not None:
             self.tray.set_unread(True)
             # broadcast com @meu-nome (janela de grupo fechada): avisa menção
             if msg.get("bcast") and self._mentioned(text):
@@ -3573,10 +3597,13 @@ class App:
         ctk.CTkCheckBox(m, text="Ocultar pílulas de data (balões sempre têm hora)",
                         variable=v_nodate).pack(anchor="w", padx=12)
         ctk.CTkLabel(m, text="Ao receber mensagem:").pack(anchor="w", padx=12, pady=(6, 0))
-        v_behav = tk.StringVar(value="foreground")
-        ctk.CTkLabel(
-            m, text="Sempre mostrar a conversa e piscar na barra de tarefas.",
-            anchor="w").pack(anchor="w", padx=24)
+        v_behav = tk.StringVar(value=s.incoming_behavior)
+        ctk.CTkRadioButton(
+            m, text="Somente piscar na barra de tarefas",
+            variable=v_behav, value="minimize").pack(anchor="w", padx=24)
+        ctk.CTkRadioButton(
+            m, text="Mostrar conversa em primeiro plano",
+            variable=v_behav, value="foreground").pack(anchor="w", padx=24)
         v_keep = tk.BooleanVar(value=s.keep_focus)
         ctk.CTkCheckBox(m, text="Manter foco do teclado na conversa",
                         variable=v_keep).pack(anchor="w", padx=12)
@@ -4098,8 +4125,24 @@ class App:
         url = info.get("url")
         if not ver or not url:
             return
-        self._upd_btn.configure(state="disabled", text="Baixando…")
-        self._upd_status.configure(text="Baixando instalador…")
+        self._start_update(str(ver), str(url))
+
+    def _start_update(self, ver: str, url: str) -> None:
+        """Baixa e instala uma versão, com ou sem a tela Sobre aberta."""
+        if not ver or not url or getattr(self, "_update_installing", False):
+            return
+        self._update_installing = True
+        self._upd_info = {"version": ver, "url": url}
+        btn = getattr(self, "_upd_btn", None)
+        status = getattr(self, "_upd_status", None)
+        try:
+            if btn is not None:
+                btn.configure(state="disabled", text="Baixando…")
+            if status is not None:
+                status.configure(text="Baixando instalador…")
+            self.statusbar.configure(text=f"Baixando atualização {ver}…")
+        except tk.TclError:
+            pass
 
         def _run() -> None:
             try:
@@ -4110,8 +4153,15 @@ class App:
                 os.close(fd)
                 try:
                     urllib.request.urlretrieve(inst, path)
-                    self.root.after(0, lambda: self._upd_status.configure(
-                        text="Instalando (silencioso)…"))
+                    def _installing() -> None:
+                        try:
+                            if status is not None:
+                                status.configure(text="Instalando (silencioso)…")
+                            self.statusbar.configure(
+                                text="Instalando atualização…")
+                        except tk.TclError:
+                            pass
+                    self.root.after(0, _installing)
                     # Inno Setup: /VERYSILENT não mostra nada;
                     # CloseApplications=yes fecha cópias abertas antes de instalar.
                     subprocess.run([path, "/VERYSILENT"], check=False)
@@ -4121,15 +4171,32 @@ class App:
                     except OSError:
                         pass
             except Exception as e:  # noqa: BLE001
-                self.root.after(0, lambda: self._upd_status.configure(
-                    text=f"Falha ao atualizar: {e}",
-                    text_color=("red", "red")))
-                self.root.after(0, lambda: self._upd_btn.configure(
-                    state="normal", text="Atualizar agora"))
+                error = str(e)
+                def _failed() -> None:
+                    self._update_installing = False
+                    try:
+                        if status is not None:
+                            status.configure(text=f"Falha ao atualizar: {error}",
+                                             text_color=("red", "red"))
+                        if btn is not None:
+                            btn.configure(state="normal", text="Atualizar agora")
+                        self.statusbar.configure(
+                            text=f"Falha ao atualizar: {error}")
+                    except tk.TclError:
+                        pass
+                self.root.after(0, _failed)
             else:
-                self.root.after(0, lambda: self._upd_status.configure(
-                    text="Instalação concluída. Reabrindo o aplicativo…",
-                    text_color=("gray40", "gray60")))
+                def _complete() -> None:
+                    try:
+                        if status is not None:
+                            status.configure(
+                                text="Instalação concluída. Reabrindo o aplicativo…",
+                                text_color=("gray40", "gray60"))
+                        self.statusbar.configure(
+                            text="Instalação concluída. Reabrindo…")
+                    except tk.TclError:
+                        pass
+                self.root.after(0, _complete)
                 try:
                     self.root.after(0, self.root.destroy)
                 except tk.TclError:
