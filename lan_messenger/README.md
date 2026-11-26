@@ -403,6 +403,9 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
 - v1.48: auxiliar externo executa a sequência completa de atualização:
   encerra `LANMessenger.exe`, instala, reabre e limpa temporários; Ajuda,
   Sobre e aviso inicial usam o mesmo fluxo.
+- v1.49: instalador mostra progresso com `/SILENT`; o app só encerra após
+  confirmar que o auxiliar iniciou; falhas reabrem a versão anterior e
+  preservam instalador e log para diagnóstico.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 

@@ -1,6 +1,19 @@
 # Histórico de versões
 
-Versão atual: **v1.48**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+Versão atual: **v1.49**. Cada versão traz mudanças visíveis ao usuário; o backend só foi reconstruído visualmente em v1.17 (CustomTkinter), sem alterar protocolo nem regras.
+
+## v1.49 — instalação visível e falha recuperável
+- O instalador usa `/SILENT` em vez de `/VERYSILENT`.
+- A janela de progresso fica visível sem exibir etapas interativas.
+- O auxiliar cria uma confirmação de início antes de o aplicativo fechar.
+- Se a confirmação não aparecer em cinco segundos, o LAN Messenger continua
+  aberto e mostra erro no rodapé.
+- O caminho do auxiliar é validado em diretórios com espaços.
+- Após qualquer retorno do instalador, o auxiliar garante a reabertura.
+- Em sucesso, temporários e log são removidos.
+- Em falha, instalador e log são preservados para diagnóstico.
+- Protocolo P2P, SQLite, transferências e regras de negócio permanecem
+  inalterados.
 
 ## v1.48 — atualizador coordenado
 - Após baixar o instalador, o aplicativo cria um auxiliar `.cmd` externo.

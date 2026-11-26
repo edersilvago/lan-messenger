@@ -294,6 +294,8 @@ texto viram emoji após envio (sem alterar URLs).
   residuais; botão da conversa pisca continuamente até receber foco.
 - v1.48: auxiliar externo encerra o processo, instala, reabre e limpa os
   temporários; aviso inicial, Sobre e Ajuda usam o mesmo fluxo.
+- v1.49: instalação mostra progresso; app só fecha após confirmação do
+  auxiliar; falha reabre a versão anterior e preserva log de diagnóstico.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:

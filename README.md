@@ -42,6 +42,8 @@ Compatível com Windows 7 SP1 / 8 / 8.1 / 10 / 11 (64 bits), com instaladores de
 - **Alerta persistente**: no modo foco, o botão da conversa pisca até o usuário abrir a janela (v1.47).
 - **Atualizador coordenado**: um auxiliar externo encerra o LAN Messenger, instala, confirma a reabertura e remove os temporários (v1.48).
 - **Ajuda atualiza diretamente**: o botão “Atualizar agora” usa o mesmo processo confiável do aviso inicial e da tela Sobre (v1.48).
+- **Instalação visível**: atualização mostra a janela de progresso do instalador, sem exigir interação no assistente (v1.49).
+- **Falha recuperável**: o app só fecha após confirmar o auxiliar; se a instalação falhar, a versão anterior reabre e o log fica preservado (v1.49).
 - **Mensagem para contato offline**: a mensagem fica na fila local e sai sozinha quando o colega aparece online (marca `(pendente)` vira tique) - o remetente precisa estar com o app aberto (v1.29).
 - **Log de erros**: falhas internas vão para `%APPDATA%\LANMessenger\logs\crash.log` com data, hora e traceback; aviso no rodapé e botão para abrir a pasta (v1.28).
 - **Instaladores versionados**: Inno Setup gera `Setup_LANMessenger_win10_11_vX.Y.exe` e `Setup_LANMessenger_win7_81_vX.Y.exe` com firewall e desinstalação completos.
