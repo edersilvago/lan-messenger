@@ -94,7 +94,7 @@ def main() -> None:
     for name in ("installer_win10_11.iss", "installer_win7_81.iss"):
         script = (base / name).read_text(encoding="utf-8")
         assert "CloseApplications=no" in script, name
-        assert '"/T /F /IM {#MyAppExe}"' in script, name
+        assert "'/T /F /IM {#MyAppExe}'" in script, name
     print("OK instaladores evitam diálogo e encerram toda a árvore do app")
 
     print("TESTE UPDATES: PASSOU")

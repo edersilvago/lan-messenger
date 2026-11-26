@@ -401,20 +401,30 @@ def _tooltip(widget: tk.Widget, text: str) -> None:
 
 
 def flash_window(widget: tk.Misc) -> bool:
-    """Pisca o botão da janela na barra de tarefas (novas conversas)."""
+    """Pisca o botão raiz até a conversa receber foco."""
     try:
         import ctypes
 
         class _FLASHWINFO(ctypes.Structure):
             _fields_ = [("cbSize", ctypes.c_uint),
                         ("hwnd", ctypes.c_void_p),
-                        ("dwFlags", ctypes.c_uint),
-                        ("uCount", ctypes.c_uint),
-                        ("dwTimeout", ctypes.c_uint)]
-        info = _FLASHWINFO(ctypes.sizeof(_FLASHWINFO), widget.winfo_id(), 3, 5, 0)
-        return bool(ctypes.windll.user32.FlashWindowEx(ctypes.byref(info)))
+                         ("dwFlags", ctypes.c_uint),
+                         ("uCount", ctypes.c_uint),
+                         ("dwTimeout", ctypes.c_uint)]
+        user32 = ctypes.windll.user32
+        user32.GetAncestor.restype = ctypes.c_void_p
+        hwnd = user32.GetAncestor(widget.winfo_id(), 2) or widget.winfo_id()
+        # FLASHW_ALL | FLASHW_TIMERNOFG: continua até usuário abrir a janela.
+        info = _FLASHWINFO(ctypes.sizeof(_FLASHWINFO), hwnd, 15, 0, 0)
+        return bool(user32.FlashWindowEx(ctypes.byref(info)))
     except Exception:
         return False
+
+
+def update_installer_args(path: str) -> list[str]:
+    """Argumentos para instalador separado, silencioso e autolimpável."""
+    return [path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART",
+            "/DELETEAFTERINSTALL"]
 
 
 def center_window(win: tk.Misc, parent: tk.Misc | None = None) -> None:
@@ -4147,32 +4157,31 @@ class App:
             pass
 
         def _run() -> None:
+            path = ""
             try:
                 import urllib.request, tempfile, subprocess
                 inst = self._installer_url(ver)
                 fd, path = tempfile.mkstemp(suffix=".exe",
                                             prefix=f"lan-update-v{ver}-")
                 os.close(fd)
-                try:
-                    urllib.request.urlretrieve(inst, path)
-                    def _installing() -> None:
-                        try:
-                            if status is not None:
-                                status.configure(text="Instalando (silencioso)…")
-                            self.statusbar.configure(
-                                text="Instalando atualização…")
-                        except tk.TclError:
-                            pass
-                    self.root.after(0, _installing)
-                    # Inno Setup: /VERYSILENT não mostra nada;
-                    # CloseApplications=yes fecha cópias abertas antes de instalar.
-                    subprocess.run([path, "/VERYSILENT"], check=False)
-                finally:
+                urllib.request.urlretrieve(inst, path)
+                def _installing() -> None:
+                    try:
+                        if status is not None:
+                            status.configure(text="Instalando (silencioso)…")
+                        self.statusbar.configure(
+                            text="Encerrando para instalar atualização…")
+                    except tk.TclError:
+                        pass
+                self.root.after(0, _installing)
+                # Processo separado continua depois do encerramento gracioso.
+                subprocess.Popen(update_installer_args(path), close_fds=True)
+            except Exception as e:  # noqa: BLE001
+                if path:
                     try:
                         os.remove(path)
                     except OSError:
                         pass
-            except Exception as e:  # noqa: BLE001
                 error = str(e)
                 def _failed() -> None:
                     self._update_installing = False
@@ -4188,21 +4197,10 @@ class App:
                         pass
                 self.root.after(0, _failed)
             else:
-                def _complete() -> None:
-                    try:
-                        if status is not None:
-                            status.configure(
-                                text="Instalação concluída. Reabrindo o aplicativo…",
-                                text_color=("gray40", "gray60"))
-                        self.statusbar.configure(
-                            text="Instalação concluída. Reabrindo…")
-                    except tk.TclError:
-                        pass
-                self.root.after(0, _complete)
                 try:
-                    self.root.after(0, self.root.destroy)
+                    self.root.after(0, self.shutdown)
                 except tk.TclError:
-                    pass  # janela já fechada pelo instalador
+                    pass
 
         threading.Thread(target=_run, daemon=True,
                          name="update-install").start()

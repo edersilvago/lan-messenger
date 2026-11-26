@@ -18,8 +18,8 @@ PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64os
 MinVersion=10.0
 WizardStyle=modern
-; Atualização: fecha cópias abertas antes de trocar o exe.
-CloseApplications=yes
+; PrepareToInstall encerra toda a árvore sem abrir diálogo do Restart Manager.
+CloseApplications=no
 RestartApplications=no
 SetupIconFile=assets\app.ico
 UninstallDisplayIcon={app}\{#MyAppExe}
@@ -76,7 +76,7 @@ var
   ResultCode: Integer;
 begin
   Exec(ExpandConstant('{sys}\taskkill.exe'),
-       '/F /IM {#MyAppExe}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+       '/T /F /IM {#MyAppExe}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Sleep(1500);
   Result := '';
 end;
