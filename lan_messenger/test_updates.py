@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
-from . import updates
+from . import app_gui, updates
 
 
 class Response:
@@ -56,6 +57,31 @@ def main() -> None:
 
     assert updates.check_latest("1.37", opener=broken) is None
     print("OK consulta, URL segura e falha offline silenciosa")
+
+    # Aviso inicial oferece instalação direta, sem abrir página do site.
+    prompts = []
+    started = []
+    old_ask = app_gui.messagebox.askyesno
+    app_gui.messagebox.askyesno = lambda title, text, **_kw: (
+        prompts.append((title, text)) or True)
+    app = SimpleNamespace()
+    app.root = object()
+    app._update_available = None
+    app.statusbar = SimpleNamespace(configure=lambda **_kw: None)
+    app._start_update = lambda version, url: started.append((version, url))
+    try:
+        app_gui.App._offer_update(
+            app, "1.46",
+            "https://github.com/edersilvago/lan-messenger/releases/tag/v1.46")
+    finally:
+        app_gui.messagebox.askyesno = old_ask
+    assert "Quer atualizar a sua versão agora?" in prompts[0][1], prompts
+    assert "página de Releases" not in prompts[0][1]
+    assert started == [(
+        "1.46",
+        "https://github.com/edersilvago/lan-messenger/releases/tag/v1.46")]
+    print("OK aviso oferece atualização direta")
+
     print("TESTE UPDATES: PASSOU")
 
 

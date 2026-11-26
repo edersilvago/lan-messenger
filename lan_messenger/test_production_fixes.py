@@ -68,11 +68,15 @@ def main() -> None:
         app.touch = lambda: None
         app._in_tray = False
         app.tray = None
+        app.opened = []
+        app.flashed = []
 
-        def open_chat(ip):
+        def open_chat(ip, minimized=False):
+            app.opened.append((ip, minimized))
             app.chat_windows[ip] = Chat()
 
         app.open_chat = open_chat
+        app._flash_chat_window = lambda chat: app.flashed.append(chat)
         return app
 
     duplicate = make_app(False)
@@ -88,8 +92,20 @@ def main() -> None:
     minimized = make_app(True, behavior="minimize")
     app_gui.App._on_msg(minimized, {"id": "m3", "text": "abre"}, "10.0.0.3")
     assert "10.0.0.3" in minimized.chat_windows
-    assert len(minimized.chat_windows["10.0.0.3"].calls) == 1
-    print("OK mensagem sempre abre conversa, inclusive com preferência antiga")
+    min_calls = minimized.chat_windows["10.0.0.3"].calls
+    assert minimized.opened == [("10.0.0.3", True)], minimized.opened
+    assert len(min_calls) == 1 and min_calls[0][1]["announce"] is False
+    assert minimized.flashed == [minimized.chat_windows["10.0.0.3"]]
+    print("OK modo foco cria conversa minimizada e somente pisca")
+
+    existing = make_app(True, behavior="minimize")
+    existing_chat = Chat()
+    existing.chat_windows["10.0.0.4"] = existing_chat
+    app_gui.App._on_msg(existing, {"id": "m4", "text": "pisca"}, "10.0.0.4")
+    assert existing.opened == []
+    assert existing_chat.calls[0][1]["announce"] is False
+    assert existing.flashed == [existing_chat]
+    print("OK modo foco não traz conversa existente ao primeiro plano")
 
     activated = []
     flashed = []
