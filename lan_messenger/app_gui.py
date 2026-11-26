@@ -1215,7 +1215,7 @@ class ChatWindow:
         if app.settings.show_recent:
             pend = app.store.pending_ids(ip)
             reps = app.store.replies_with(ip)
-            for mid, direction, text, ts in app.store.messages_with_ids(ip):
+            for mid, direction, text, ts in app.store.messages_today_with_ids(ip):
                 self._history_rows.append(
                     (direction, text, ts, mid, mid in pend, reps.get(mid)))
         self._history_loading = bool(self._history_rows)
@@ -1497,7 +1497,7 @@ class ChatWindow:
     def _announce(self) -> None:
         """Sempre traz à frente + pisca se sem foco (novas mensagens)."""
         try:
-            self._activate_chat_window(self)
+            self.app._activate_chat_window(self)
         except Exception:
             pass
         if not self.focused:
@@ -3116,12 +3116,7 @@ class App:
                 sfx.play(self.settings, "broadcast")
             return
         w = self.chat_windows.get(ip)
-        if self.settings.incoming_behavior == "minimize":
-            # minimiza na barra: sem popup; avisa na statusbar + som
-            self.statusbar.configure(text=f"Nova mensagem de {self.peer_label(ip)}")
-            if w and w.win.winfo_exists():
-                w.incoming(text, self.selected_info(ip), mid=mid, reply=reply)
-        elif w and w.win.winfo_exists():
+        if w and w.win.winfo_exists():
             w.incoming(text, self.selected_info(ip), mid=mid, reply=reply)
         else:
             self.open_chat(ip)
@@ -3576,11 +3571,10 @@ class App:
         ctk.CTkCheckBox(m, text="Ocultar pílulas de data (balões sempre têm hora)",
                         variable=v_nodate).pack(anchor="w", padx=12)
         ctk.CTkLabel(m, text="Ao receber mensagem:").pack(anchor="w", padx=12, pady=(6, 0))
-        v_behav = tk.StringVar(value=s.incoming_behavior)
-        ctk.CTkRadioButton(m, text="Minimizar mensagens recebidas na barra de tarefas",
-                           variable=v_behav, value="minimize").pack(anchor="w", padx=24)
-        ctk.CTkRadioButton(m, text="Definir as mensagens recebidas em primeiro-plano",
-                           variable=v_behav, value="foreground").pack(anchor="w", padx=24)
+        v_behav = tk.StringVar(value="foreground")
+        ctk.CTkLabel(
+            m, text="Sempre mostrar a conversa e piscar na barra de tarefas.",
+            anchor="w").pack(anchor="w", padx=24)
         v_keep = tk.BooleanVar(value=s.keep_focus)
         ctk.CTkCheckBox(m, text="Manter foco do teclado na conversa",
                         variable=v_keep).pack(anchor="w", padx=12)

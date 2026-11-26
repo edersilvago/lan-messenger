@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS outbox (
 CREATE TABLE IF NOT EXISTS replies (
   msg_id TEXT PRIMARY KEY, reply_id TEXT, reply_name TEXT, reply_text TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_messages_peer_ts ON messages(peer, ts);
 """
 
 
@@ -76,6 +77,17 @@ class Store:
             "       FROM messages WHERE peer=?"
             "       ORDER BY ts DESC, rowid DESC LIMIT ?)"
             " ORDER BY ts ASC, rid ASC", (peer, limit))
+        return list(cur.fetchall())
+
+    def messages_today_with_ids(
+            self, peer: str) -> list[tuple[str, str, str, str]]:
+        """Mensagens do dia local atual para a janela de conversa."""
+        cur = self._conn.execute(
+            "SELECT id, direction, text, datetime(ts,'unixepoch','localtime')"
+            " FROM messages"
+            " WHERE peer=?"
+            " AND date(ts,'unixepoch','localtime')=date('now','localtime')"
+            " ORDER BY ts ASC, rowid ASC", (peer,))
         return list(cur.fetchall())
 
     # -- fila de saída (v1.29): mensagens p/ quem estava offline ----------
