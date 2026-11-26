@@ -83,12 +83,20 @@ def main() -> None:
         "https://github.com/edersilvago/lan-messenger/releases/tag/v1.46")]
     print("OK aviso oferece atualização direta")
 
-    args = app_gui.update_installer_args(r"C:\Temp\LAN Messenger Setup.exe")
-    assert args == [
+    script = app_gui.update_helper_script(
         r"C:\Temp\LAN Messenger Setup.exe",
-        "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART",
-        "/DELETEAFTERINSTALL"], args
-    print("OK instalador inicia separado sem manter aplicativo bloqueado")
+        r"C:\Program Files\LANMessenger\LANMessenger.exe")
+    assert "taskkill /F /IM LANMessenger.exe" in script
+    assert ('start /wait "" "C:\\Temp\\LAN Messenger Setup.exe" '
+            "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART") in script
+    assert ('start "" "C:\\Program Files\\LANMessenger\\LANMessenger.exe"'
+            in script)
+    assert 'del /F /Q "C:\\Temp\\LAN Messenger Setup.exe"' in script
+    print("OK auxiliar encerra, instala, reabre e limpa")
+
+    args = app_gui.update_helper_args(r"C:\Temp\lan-update.cmd")
+    assert args[-3:] == ["/d", "/c", r"C:\Temp\lan-update.cmd"], args
+    print("OK auxiliar inicia separado do LAN Messenger")
 
     base = Path(__file__).parent
     for name in ("installer_win10_11.iss", "installer_win7_81.iss"):
