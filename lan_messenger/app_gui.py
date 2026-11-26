@@ -432,6 +432,57 @@ def center_window(win: tk.Misc, parent: tk.Misc | None = None) -> None:
         log_crash("center_window", e)
 
 
+def center_in_area(width: int, height: int,
+                   area: tuple[int, int, int, int]) -> tuple[int, int]:
+    """Coordenadas centrais em uma área (left, top, right, bottom)."""
+    left, top, right, bottom = area
+    return (left + max(0, right - left - width) // 2,
+            top + max(0, bottom - top - height) // 2)
+
+
+def _monitor_work_area(parent: tk.Misc) -> tuple[int, int, int, int] | None:
+    """Área útil do monitor onde está a janela principal (Windows)."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class _MONITORINFO(ctypes.Structure):
+            _fields_ = [("cbSize", wintypes.DWORD),
+                        ("rcMonitor", wintypes.RECT),
+                        ("rcWork", wintypes.RECT),
+                        ("dwFlags", wintypes.DWORD)]
+
+        monitor = ctypes.windll.user32.MonitorFromWindow(
+            parent.winfo_id(), 2)  # MONITOR_DEFAULTTONEAREST
+        info = _MONITORINFO()
+        info.cbSize = ctypes.sizeof(_MONITORINFO)
+        if not monitor or not ctypes.windll.user32.GetMonitorInfoW(
+                monitor, ctypes.byref(info)):
+            return None
+        r = info.rcWork
+        return int(r.left), int(r.top), int(r.right), int(r.bottom)
+    except Exception:
+        return None
+
+
+def center_chat_window(win: tk.Misc, geom: str, parent: tk.Misc) -> None:
+    """Centraliza conversa no monitor da janela principal."""
+    try:
+        width, height = chatview.geometry_size(geom)
+        if not width or not height:
+            width, height = (chatview.geometry_size(
+                chatview.DEFAULT_CHAT_GEOMETRY))
+        area = _monitor_work_area(parent)
+        if area is None:
+            area = (0, 0, win.winfo_screenwidth(), win.winfo_screenheight())
+        x, y = center_in_area(width, height, area)
+        win.geometry(f"{width}x{height}+{x}+{y}")
+    except tk.TclError:
+        pass
+    except Exception as e:
+        log_crash("center_chat_window", e)
+
+
 def esc_closes(win: tk.Misc, action) -> None:
     """ESC sai da janela (todas as telas do software)."""
     try:
@@ -515,6 +566,22 @@ def scroll_end(scroll) -> None:
         ]
     except (tk.TclError, AttributeError):
         pass
+
+
+def take_history_batch(rows: list, index: int,
+                       size: int = 12) -> tuple[list, int]:
+    """Separa lote pequeno para não bloquear a thread visual."""
+    end = min(len(rows), index + max(1, size))
+    return rows[index:end], end
+
+
+def roster_layout_signature(groups: dict, labels: list[str],
+                            collapsed: set[str]) -> tuple:
+    """Assinatura estrutural; status visual não força reconstrução da lista."""
+    return tuple(
+        (dept, dept in collapsed, tuple(ip for ip, _info in groups[dept]))
+        for dept in labels
+    )
 
 
 def center_fixed(win: tk.Misc, geom: str) -> None:
@@ -1060,7 +1127,8 @@ class ChatWindow:
         self.app = app
         self.ip = ip
         self.win = ctk.CTkToplevel(app.root)
-        self.win.geometry(chatview.conversation_geometry(app.settings.chat_geometry))
+        geom = chatview.conversation_geometry(app.settings.chat_geometry)
+        center_chat_window(self.win, geom, app.root)
         self.win.minsize(chatview.MIN_CHAT_WIDTH, chatview.MIN_CHAT_HEIGHT)
         self._refresh_title(info)
         self._apply_icon()
@@ -1137,23 +1205,28 @@ class ChatWindow:
         self._last_date = ""
         self._pending: dict[str, object] = {}      # mid -> linha do balão
         self._pending_ts: dict[str, str] = {}
+        self._history_rows: list[tuple] = []
+        self._history_index = 0
+        self._history_loading = False
+        self._history_finished = False
+        self._history_live: list[tuple] = []
         if app.settings.show_recent:
             pend = app.store.pending_ids(ip)
             reps = app.store.replies_with(ip)
             for mid, direction, text, ts in app.store.messages_with_ids(ip):
-                self._dated(direction, text, ts, mid=mid, pending=mid in pend,
-                            reply=reps.get(mid))
-            scroll_end(self.scroll)
-        self._sys(f"--- conversa com {roster.label_of(info)}@{ip} ---")
+                self._history_rows.append(
+                    (direction, text, ts, mid, mid in pend, reps.get(mid)))
+        self._history_loading = bool(self._history_rows)
+        if self._history_loading:
+            self._render_history_batch()
+        else:
+            self._finish_history()
         self.apply_font()
         self._enable_drop()
         self.win.protocol("WM_DELETE_WINDOW", self._on_close)
         esc_closes(self.win, self._on_close)
         self.entry.focus_set()
         self.update_status_line(info)
-        # centraliza DEPOIS do conteúdo + ao mapear (tamanho real) e
-        # rola p/ a última mensagem
-        center_soon(self.win)
         scroll_end(self.scroll)
 
     def _chat_toolbar_button(self, parent, text: str, tip: str, icon: str, cmd) -> None:
@@ -1233,6 +1306,34 @@ class ChatWindow:
             except Exception:
                 pass
             self._bind_bubble_menu(row, direction, text, name)
+        scroll_end(self.scroll)
+
+    def _render_history_batch(self) -> None:
+        """Renderiza histórico em lotes; janela abre antes dos 100 balões."""
+        if self._history_finished:
+            return
+        batch, self._history_index = take_history_batch(
+            self._history_rows, self._history_index)
+        for direction, text, ts, mid, pending, reply in batch:
+            self._dated(direction, text, ts, mid=mid, pending=pending,
+                        reply=reply)
+        if self._history_index < len(self._history_rows):
+            try:
+                self.win.after(1, self._render_history_batch)
+            except tk.TclError:
+                pass
+            return
+        self._finish_history()
+
+    def _finish_history(self) -> None:
+        if self._history_finished:
+            return
+        self._history_finished = True
+        self._history_loading = False
+        self._sys(f"--- conversa com {self.app.peer_label(self.ip)}@{self.ip} ---")
+        live, self._history_live = self._history_live, []
+        for direction, text, ts, mid, reply in live:
+            self._dated(direction, text, ts, mid=mid, reply=reply)
         scroll_end(self.scroll)
 
     def _bind_bubble_menu(self, row, direction: str, text: str,
@@ -1338,11 +1439,16 @@ class ChatWindow:
         scroll_end(self.scroll)
 
     def incoming(self, text: str, info: dict, mid: str = "",
-                 reply: dict | None = None) -> None:
+                 reply: dict | None = None,
+                 append_history: bool = True) -> None:
         self._refresh_title(info)
         s = self.app.settings
         ts = time.strftime("%d/%m/%Y - %H:%M:%S")  # sempre: identifica a hora
-        self._dated("in", text, ts, mid=mid, reply=reply)
+        if append_history:
+            if self._history_loading:
+                self._history_live.append(("in", text, ts, mid, reply))
+            else:
+                self._dated("in", text, ts, mid=mid, reply=reply)
         self.update_status_line(info)
         self.win.after(0, self._announce)
         self.win.after(0, self._focus_entry)
@@ -1812,6 +1918,7 @@ class App:
         self._collapsed_groups: set[str] = set()
         self._seen_online: set[str] | None = None  # None = primeira carga (sem som)
         self._roster_sig: tuple = ()
+        self._roster_rows: dict[str, object] = {}
         self._refresh_count: int = 0
         self._manual_status = False
         self._status_buttons: dict[str, object] = {}
@@ -2462,14 +2569,16 @@ class App:
         online_now = {ip for ip, p in self.disc.get_peers().items()}
         n_online = len(online_now)
         stale_n = sum(1 for ip in online_now if self.disc.is_stale(ip))
-        stale_set = tuple(sorted(ip for ip in online_now if self.disc.is_stale(ip)))
         labels = roster.order_labels(list(groups), self.settings.group_order)
-        sig = (tuple(sorted(
-            (ip, str(p.get("status", "")), str(p.get("display") or p.get("name", "")),
-             str(p.get("dept", ""))) for ip, p in peers.items())),
-               tuple(labels), self.settings.hide_offline,
-               self._selected_ip, stale_set)
+        sig = roster_layout_signature(groups, labels, self._collapsed_groups)
+        if self._seen_online is None:
+            self._seen_online = online_now  # primeira carga: silenciosa
+        else:
+            for ip in online_now - self._seen_online:
+                sfx.play(self.settings, "user_online")  # "Usuário está online"
+            self._seen_online = online_now
         if sig == self._roster_sig and self.roster_box.winfo_children():
+            self._update_roster_rows(peers)
             self.statusbar.configure(
                 text=f"Meus Dados: {self.profile.effective_display()} [{status_pt(self.disc.status)}] | "
                      f"{n_online} online"
@@ -2485,12 +2594,7 @@ class App:
                 pass
         self._item_ip.clear()
         self._item_group.clear()
-        if self._seen_online is None:
-            self._seen_online = online_now  # primeira carga: silenciosa
-        else:
-            for ip in online_now - self._seen_online:
-                sfx.play(self.settings, "user_online")  # "Usuário está online"
-            self._seen_online = online_now
+        self._roster_rows.clear()
         img_group = self._load_icon("usergroup.png", 16)
         img_user = self._load_icon("user.png", 16)
         for dept in labels:
@@ -2539,12 +2643,34 @@ class App:
                 row.bind("<Double-Button-1>", lambda e, i=ip: self.open_chat(i), add="+")
                 row.bind("<Button-3>", lambda e, i=ip: self._user_popup(e, i), add="+")
                 self._item_ip[row] = ip
+                self._roster_rows[ip] = row
         self.statusbar.configure(
             text=f"Meus Dados: {self.profile.effective_display()} [{status_pt(self.disc.status)}] | "
                  f"{n_online} online"
                  + (f" ({stale_n} sinal fraco)" if stale_n else "")
                  + (" 🔒" if self.key else " (sem cripto)"))
         self._update_status_buttons()
+
+    def _update_roster_rows(self, peers: dict[str, dict]) -> None:
+        """Atualiza texto, cor e seleção sem destruir widgets."""
+        for ip, row in list(self._roster_rows.items()):
+            info = peers.get(ip)
+            if info is None:
+                continue
+            icon = roster.STATUS_ICON.get(info.get("status", "online"), "?")
+            label = roster.label_of(info)
+            if info.get("self"):
+                label += " (você)"
+            elif info.get("status") == "online" and self.disc.is_stale(ip):
+                label += " (sinal fraco)"
+            color = ROSTER_STATUS_COLORS.get(
+                info.get("status", "online"), ("black", "white"))
+            selected = ("gray75", "gray30") if ip == self._selected_ip else "transparent"
+            try:
+                row.configure(text=f"{icon} {label}", text_color=color,
+                              fg_color=selected)
+            except tk.TclError:
+                pass
 
     def _on_user_click(self, ip: str) -> None:
         """Um clique seleciona; duplo abre a conversa (abre direto, simples)."""
@@ -2951,9 +3077,12 @@ class App:
     def _on_msg(self, msg: dict, ip: str) -> None:
         text = str(msg.get("text", ""))
         mid = str(msg.get("id", ""))
+        if not mid:
+            mid = f"recv-{time.time_ns()}-{ip}"
         raw = msg.get("reply")
         reply = raw if isinstance(raw, dict) and raw.get("id") else None
-        self.store.add_message(mid, ip, "in", text)
+        if not self.store.add_message_once(mid, ip, "in", text):
+            return
         if reply:  # v1.30: guarda a citação p/ reabrir a conversa
             self.store.set_reply(mid, str(reply.get("id", "")),
                                  str(reply.get("name", ""))[:80],
@@ -2995,7 +3124,8 @@ class App:
         else:
             self.open_chat(ip)
             self.chat_windows[ip].incoming(text, self.selected_info(ip),
-                                           mid=mid, reply=reply)
+                                           mid=mid, reply=reply,
+                                           append_history=False)
         self.touch()
         if self._in_tray and self.tray is not None:
             self.tray.set_unread(True)

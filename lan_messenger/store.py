@@ -36,6 +36,15 @@ class Store:
             (msg_id, peer, direction, text, time.time()))
         self._conn.commit()
 
+    def add_message_once(self, msg_id: str, peer: str,
+                         direction: str, text: str) -> bool:
+        """Grava somente ids novos. Retorna False em reentrega duplicada."""
+        cur = self._conn.execute(
+            "INSERT OR IGNORE INTO messages VALUES (?,?,?,?,?)",
+            (msg_id, peer, direction, text, time.time()))
+        self._conn.commit()
+        return cur.rowcount == 1
+
     def add_file(self, file_id: str, peer: str, filename: str, size: int, path: str) -> None:
         self._conn.execute(
             "INSERT OR REPLACE INTO files VALUES (?,?,?,?,?,?)",
@@ -52,7 +61,10 @@ class Store:
         """Histórico com um peer (p/ janela de conversa). [(direction, text, ts)]."""
         cur = self._conn.execute(
             "SELECT direction, text, datetime(ts,'unixepoch','localtime')"
-            " FROM messages WHERE peer=? ORDER BY ts ASC LIMIT ?", (peer, limit))
+            " FROM (SELECT direction, text, ts, rowid AS rid"
+            "       FROM messages WHERE peer=?"
+            "       ORDER BY ts DESC, rowid DESC LIMIT ?)"
+            " ORDER BY ts ASC, rid ASC", (peer, limit))
         return list(cur.fetchall())
 
     def messages_with_ids(self, peer: str,
@@ -60,7 +72,10 @@ class Store:
         """Como messages_with, mas com o id (marca balão pendente)."""
         cur = self._conn.execute(
             "SELECT id, direction, text, datetime(ts,'unixepoch','localtime')"
-            " FROM messages WHERE peer=? ORDER BY ts ASC LIMIT ?", (peer, limit))
+            " FROM (SELECT id, direction, text, ts, rowid AS rid"
+            "       FROM messages WHERE peer=?"
+            "       ORDER BY ts DESC, rowid DESC LIMIT ?)"
+            " ORDER BY ts ASC, rid ASC", (peer, limit))
         return list(cur.fetchall())
 
     # -- fila de saída (v1.29): mensagens p/ quem estava offline ----------
