@@ -2,7 +2,7 @@
 ;   C:\tools\inno\ISCC.exe lan_messenger\installer_win10_11.iss
 ; Saída: installer\Setup_LANMessenger_win10_11.exe
 #define MyAppName "LAN Messenger"
-#define MyAppVersion "1.42"
+#define MyAppVersion "1.43"
 #define MyAppExe "LANMessenger.exe"
 
 [Setup]
@@ -53,7 +53,7 @@ Filename: "netsh"; Parameters: "advfirewall firewall add rule name=""LANMsg TCP 
 Filename: "netsh"; Parameters: "advfirewall firewall add rule name=""LANMsg TCP Files"" dir=in action=allow protocol=TCP localport=50002"; \
   Flags: runhidden; StatusMsg: "Liberando arquivos (TCP 50002)..."
 Filename: "{app}\{#MyAppExe}"; Description: "Iniciar o {#MyAppName} agora"; \
-  Flags: postinstall nowait skipifsilent runasoriginaluser
+  Flags: postinstall nowait runasoriginaluser
 
 [UninstallRun]
 ; Fecha o app se estiver aberto durante a desinstalação.

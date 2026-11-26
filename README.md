@@ -31,6 +31,7 @@ Compatível com Windows 7 SP1 / 8 / 8.1 / 10 / 11 (64 bits), com instaladores de
 - **Renomear grupo por F2**: clicar no grupo seleciona e F2 renomeia (v1.40).
 - **Sobre com atualização**: tela Sobre verifica nova versão, baixa e instala silenciosamente (estilo Firefox) (v1.41).
 - **Exportar/importar grupos com contatos**: a exportação também salva os dados dos contatos para organizar ao importar em outro cliente (v1.42).
+- **Reabrir após atualização**: o instalador reabre o LAN Messenger ao terminar a atualização silenciosa (v1.43).
 - **Mensagem para contato offline**: a mensagem fica na fila local e sai sozinha quando o colega aparece online (marca `(pendente)` vira tique) - o remetente precisa estar com o app aberto (v1.29).
 - **Log de erros**: falhas internas vão para `%APPDATA%\LANMessenger\logs\crash.log` com data, hora e traceback; aviso no rodapé e botão para abrir a pasta (v1.28).
 - **Instaladores versionados**: Inno Setup gera `Setup_LANMessenger_win10_11_vX.Y.exe` e `Setup_LANMessenger_win7_81_vX.Y.exe` com firewall e desinstalação completos.
