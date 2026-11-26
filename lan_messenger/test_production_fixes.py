@@ -4,6 +4,7 @@ Roda: python -m lan_messenger.test_production_fixes
 """
 from __future__ import annotations
 
+import ctypes
 from types import SimpleNamespace
 
 from . import app_gui
@@ -122,6 +123,32 @@ def main() -> None:
         app_gui.flash_window = real_flash
     assert activated == [announce] and flashed == [announce.win]
     print("OK mensagem traz conversa à frente e pisca na barra")
+
+    class WinCall:
+        def __init__(self, result):
+            self.result = result
+            self.calls = []
+            self.restype = None
+
+        def __call__(self, *args):
+            self.calls.append(args)
+            return self.result
+
+    get_ancestor = WinCall(9001)
+    flash = WinCall(1)
+    fake_windll = SimpleNamespace(user32=SimpleNamespace(
+        GetAncestor=get_ancestor, FlashWindowEx=flash))
+    real_windll = ctypes.windll
+    ctypes.windll = fake_windll
+    try:
+        assert app_gui.flash_window(SimpleNamespace(winfo_id=lambda: 1234))
+    finally:
+        ctypes.windll = real_windll
+    info = flash.calls[0][0]._obj
+    assert get_ancestor.calls == [(1234, 2)], get_ancestor.calls
+    assert info.hwnd == 9001 and info.dwFlags == 15 and info.uCount == 0, (
+        info.hwnd, info.dwFlags, info.uCount)
+    print("OK pisca botão raiz até usuário abrir a conversa")
 
     print("TESTE PRODUCTION FIXES: PASSOU")
 

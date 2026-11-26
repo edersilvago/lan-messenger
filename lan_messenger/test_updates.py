@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 from . import app_gui, updates
@@ -81,6 +82,20 @@ def main() -> None:
         "1.46",
         "https://github.com/edersilvago/lan-messenger/releases/tag/v1.46")]
     print("OK aviso oferece atualização direta")
+
+    args = app_gui.update_installer_args(r"C:\Temp\LAN Messenger Setup.exe")
+    assert args == [
+        r"C:\Temp\LAN Messenger Setup.exe",
+        "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART",
+        "/DELETEAFTERINSTALL"], args
+    print("OK instalador inicia separado sem manter aplicativo bloqueado")
+
+    base = Path(__file__).parent
+    for name in ("installer_win10_11.iss", "installer_win7_81.iss"):
+        script = (base / name).read_text(encoding="utf-8")
+        assert "CloseApplications=no" in script, name
+        assert '"/T /F /IM {#MyAppExe}"' in script, name
+    print("OK instaladores evitam diálogo e encerram toda a árvore do app")
 
     print("TESTE UPDATES: PASSOU")
 
