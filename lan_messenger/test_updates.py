@@ -85,17 +85,23 @@ def main() -> None:
 
     script = app_gui.update_helper_script(
         r"C:\Temp\LAN Messenger Setup.exe",
-        r"C:\Program Files\LANMessenger\LANMessenger.exe")
+        r"C:\Program Files\LANMessenger\LANMessenger.exe",
+        r"C:\Temp\lan-update.ready")
+    assert '> "C:\\Temp\\lan-update.ready" echo ready' in script
     assert "taskkill /F /IM LANMessenger.exe" in script
     assert ('start /wait "" "C:\\Temp\\LAN Messenger Setup.exe" '
-            "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART") in script
+            "/SILENT /SUPPRESSMSGBOXES /NORESTART "
+            '/LOG="C:\\Temp\\LAN Messenger Setup.exe.log"') in script
+    assert "/VERYSILENT" not in script
     assert ('start "" "C:\\Program Files\\LANMessenger\\LANMessenger.exe"'
             in script)
-    assert 'del /F /Q "C:\\Temp\\LAN Messenger Setup.exe"' in script
+    assert ('if "%INSTALL_EXIT%"=="0" del /F /Q '
+            '"C:\\Temp\\LAN Messenger Setup.exe"' in script)
     print("OK auxiliar encerra, instala, reabre e limpa")
 
     args = app_gui.update_helper_args(r"C:\Temp\lan-update.cmd")
-    assert args[-3:] == ["/d", "/c", r"C:\Temp\lan-update.cmd"], args
+    assert args[-4:] == [
+        "/d", "/s", "/c", '""C:\\Temp\\lan-update.cmd""'], args
     print("OK auxiliar inicia separado do LAN Messenger")
 
     base = Path(__file__).parent
