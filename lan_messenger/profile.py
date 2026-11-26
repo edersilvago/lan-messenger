@@ -64,6 +64,7 @@ class Settings:
     custom_groups: list = field(default_factory=list)  # Adicionar Novo Grupo
     peer_groups: dict = field(default_factory=dict)  # peer_key -> dept (Mover Usuário)
     group_order: list = field(default_factory=list)  # ordem manual dos grupos
+    contacts: dict = field(default_factory=dict)  # peer_key -> dados do contato (exportação/importação)
     main_geometry: str = ""           # posição/tamanho da principal (WxH+X+Y)
     chat_geometry: str = "650x620"    # padrão das conversas
     theme: str = "Light"              # "Light" | "Dark" | "System" (Aparência)
@@ -125,6 +126,7 @@ def load(base: str | Path | None = None) -> tuple[Profile, Settings]:
                       "keep_focus", "font_size", "toast_enabled",
                       "group_aliases", "hidden_groups",
                       "custom_groups", "peer_groups", "group_order",
+                      "contacts",
                       "main_geometry", "chat_geometry",
                       "busy_msg", "away_msg", "theme"):
                 if k in d:

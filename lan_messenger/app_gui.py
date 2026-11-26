@@ -281,6 +281,8 @@ texto viram emoji após envio (sem alterar URLs).
   clique no grupo seleciona e F2 renomeia.
 - v1.41: Sobre com atualização — verifica nova versão, baixa e instala
   silenciosamente (estilo Firefox).
+- v1.42: exportar/importar grupos também salva os dados dos contatos
+  (nome, departamento, cargo, IDs, hardware) para organizar ao importar.
 
 9. PROJETO
 - Código-fonte, documentação e releases no GitHub:
@@ -3648,18 +3650,36 @@ class App:
                       command=win.destroy).pack(side="right")
 
     def export_groups(self, parent=None) -> None:
-        """Exporta organização de grupos para JSON (v1.40)."""
+        """Exporta organização de grupos e contatos para JSON (v1.41)."""
         path = filedialog.asksaveasfilename(
             parent=parent or self.root,
-            title="Exportar grupos",
+            title="Exportar grupos e contatos",
             defaultextension=".json",
             initialfile="lan-messenger-grupos.json",
             filetypes=[("JSON", "*.json"), ("Todos", "*.*")])
         if not path:
             return
+        contacts = {}
+        disc = getattr(self, "disc", None)
+        if disc is not None:
+            for ip, info in disc.get_roster().items():
+                key = roster.peer_key(info)
+                contacts[key] = {
+                    "name": str(info.get("name", "") or ""),
+                    "user": str(info.get("user", "") or ""),
+                    "display": str(info.get("display", "") or ""),
+                    "dept": str(info.get("dept", "") or ""),
+                    "role": str(info.get("role", "") or ""),
+                    "anydesk": str(info.get("anydesk", "") or ""),
+                    "rustdesk": str(info.get("rustdesk", "") or ""),
+                    "status_msg": str(info.get("status_msg", "") or ""),
+                    "hw": info.get("hw") or {},
+                    "app_version": str(info.get("app_version", "") or ""),
+                }
         data = {
             "kind": "lan-messenger-groups",
-            "version": 1,
+            "version": 2,
+            "contacts": contacts,
             "group_aliases": dict(self.settings.group_aliases),
             "hidden_groups": list(self.settings.hidden_groups),
             "custom_groups": list(self.settings.custom_groups),
@@ -3674,14 +3694,17 @@ class App:
             messagebox.showerror("Exportar grupos", f"Não foi possível salvar:\n{e}",
                                  parent=parent or self.root)
             return
-        messagebox.showinfo("Exportar grupos", "Grupos exportados com sucesso.",
-                            parent=parent or self.root)
+        n = len(contacts)
+        messagebox.showinfo(
+            "Exportar grupos",
+            f"Grupos e {n} contato(s) exportado(s) com sucesso.",
+            parent=parent or self.root)
 
     def import_groups(self, parent=None) -> None:
-        """Importa organização de grupos de JSON (v1.40)."""
+        """Importa organização de grupos e contatos de JSON (v1.41)."""
         path = filedialog.askopenfilename(
             parent=parent or self.root,
-            title="Importar grupos",
+            title="Importar grupos e contatos",
             filetypes=[("JSON", "*.json"), ("Todos", "*.*")])
         if not path:
             return False
@@ -3698,8 +3721,9 @@ class App:
             return False
         if not messagebox.askyesno(
                 "Importar grupos",
-                "Importar substitui a organização atual de grupos "
-                "(apelidos, ocultos, personalizados, ordem e vínculos).\n\nContinuar?",
+                "Importar substitui a organização atual de grupos e contatos "
+                "(apelidos, ocultos, personalizados, ordem, vínculos e dados dos contatos).\n\n"
+                "Continuar?",
                 parent=parent or self.root):
             return False
         ga = data.get("group_aliases")
@@ -3707,16 +3731,37 @@ class App:
         cg = data.get("custom_groups")
         pg = data.get("peer_groups")
         go = data.get("group_order")
+        ct = data.get("contacts")
         self.settings.group_aliases = dict(ga) if isinstance(ga, dict) else {}
         self.settings.hidden_groups = list(hg) if isinstance(hg, list) else []
         self.settings.custom_groups = list(cg) if isinstance(cg, list) else []
         self.settings.peer_groups = dict(pg) if isinstance(pg, dict) else {}
         self.settings.group_order = list(go) if isinstance(go, list) else []
+        self.settings.contacts = dict(ct) if isinstance(ct, dict) else {}
+        # aplicar dados salvos aos contatos já conhecidos nesta máquina
+        apply_contacts = getattr(self, "_apply_contacts_to_roster", None)
+        if apply_contacts is not None:
+            try:
+                apply_contacts()
+            except Exception as e:  # nunca quebra a importação por causa disso
+                log_crash("apply_contacts", e)
         profile.save(self.profile, self.settings)
         self.refresh()
-        messagebox.showinfo("Importar grupos", "Grupos importados. A lista foi atualizada.",
-                            parent=parent or self.root)
+        n_contacts = len(self.settings.contacts)
+        messagebox.showinfo(
+            "Importar grupos",
+            f"Grupos e {n_contacts} contato(s) importado(s). A lista foi atualizada.",
+            parent=parent or self.root)
         return True
+
+    def _apply_contacts_to_roster(self) -> None:
+        """Aplica dados salvos dos contatos importados aos peers conhecidos."""
+        disc = getattr(self, "disc", None)
+        if disc is not None:
+            try:
+                disc.apply_contacts(self.settings.contacts)
+            except Exception as e:  # nunca quebra a importação por causa disso
+                log_crash("apply_contacts", e)
 
     def groups_dialog(self, parent) -> None:
         """Configurações dos Grupos (link da tela Geral): apelido + ocultar."""

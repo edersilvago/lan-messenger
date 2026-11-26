@@ -307,6 +307,33 @@ class Discovery:
             self._peers[ip] = dict(info)
             self._known[ip] = dict(info)
 
+    def apply_contacts(self, contacts: dict[str, dict]) -> None:
+        """Mescla dados salvos (exportação/importação de contatos) nos peers
+        conhecidos, chaveados por peer_key (user|name). Não altera IP nem
+        presença: só preenche nome, dept, role, IDs etc. quando faltarem."""
+        if not contacts:
+            return
+        with self._lock:
+            targets = {}
+            for ip, info in list(self._peers.items()) + list(self._known.items()):
+                key = f"{info.get('user', '?')}|{info.get('name', '?')}"
+                if key in contacts:
+                    targets.setdefault(ip, info)
+            for ip, info in targets.items():
+                key = f"{info.get('user', '?')}|{info.get('name', '?')}"
+                saved = contacts.get(key, {}) or {}
+                merged = dict(info)
+                for field in ("name", "display", "dept", "role", "anydesk",
+                              "rustdesk", "status_msg", "app_version"):
+                    val = saved.get(field)
+                    if val:
+                        merged[field] = val
+                hw = saved.get("hw")
+                if isinstance(hw, dict):
+                    merged["hw"] = {**merged.get("hw", {}), **hw}
+                self._peers[ip] = merged
+                self._known[ip] = merged
+
     # -- faixas de rede (estilo clássico: tela Rede -> Transmissão) ------
     def get_ranges(self) -> list[str]:
         with self._lock:

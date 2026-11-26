@@ -385,6 +385,8 @@ túnel / firewall com perfil Público / faixas digitadas erradas (`/ranges` most
   exportados/importados em JSON; clique no grupo seleciona para F2.
 - v1.41: Sobre com atualização — verifica nova versão, baixa e instala
   silenciosamente (estilo Firefox).
+- v1.42: exportar/importar grupos também salva os dados dos contatos
+  (nome, departamento, cargo, IDs, hardware) para organizar ao importar.
 
 ## Limites do P2P puro (por arquitetura, não por falta)
 
